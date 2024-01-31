@@ -2,8 +2,8 @@ package injector
 
 import (
 	"fmt"
+	"github.com/kjbreil/syncer/control"
 	"reflect"
-	"strconv"
 )
 
 type Injector struct {
@@ -24,10 +24,10 @@ func New(data any) (*Injector, error) {
 	}, nil
 }
 
-func (inj *Injector) Add(inja *Injectable) error {
-	return add(inj.data, inja)
+func (inj *Injector) Add(ctrl *control.Entry) error {
+	return add(inj.data, ctrl)
 }
-func add(data any, inja *Injectable) error {
+func add(data any, ctrl *control.Entry) error {
 	v := reflect.ValueOf(data)
 
 	// if its a pointer follow to the real data
@@ -37,41 +37,38 @@ func add(data any, inja *Injectable) error {
 
 	t := v.Type()
 
-	if t.Name() != inja.key[0].Key {
-		return fmt.Errorf("type mismatch %s!= %s", t.Name(), inja.key[0].Key)
+	if t.Name() != ctrl.Key[0].Key {
+		return fmt.Errorf("type mismatch %s!= %s", t.Name(), ctrl.Key[0].Key)
 	}
-	inja.Advance()
+	ctrl.Advance()
 
 	for i := 0; i < v.NumField(); i++ {
-		if t.Field(i).Name == inja.key[0].Key {
+		if t.Field(i).Name == ctrl.Key[0].Key {
 			va := v.Field(i)
-			if len(inja.key) > 1 {
-				return add(va.Interface(), inja.Advance())
+			if len(ctrl.Key) > 1 {
+				return add(va.Interface(), ctrl.Advance())
 			} else {
 				if va.CanSet() {
-					return setValue(va, inja)
+					return setValue(va, ctrl)
 				}
 			}
 		}
 	}
-	return fmt.Errorf("key not found in data")
+	return fmt.Errorf("Key not found in data")
 }
 
-func setValue(va reflect.Value, inja *Injectable) error {
+func setValue(va reflect.Value, ctrl *control.Entry) error {
 	switch va.Kind() {
 	case reflect.String:
-		va.SetString(inja.value)
+		va.SetString(ctrl.Value.GetString_())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := strconv.Atoi(inja.value)
-		if err != nil {
-			return err
-		}
+		i := int(ctrl.Value.GetInt64())
 		va.SetInt(int64(i))
 	case reflect.Slice:
-		if inja.key[0].Index == nil {
+		if ctrl.Key[0].Index == nil {
 			return fmt.Errorf("slice type without index")
 		}
-		indexInt := int(inja.key[0].Index.GetInt64())
+		indexInt := int(ctrl.Key[0].Index.GetInt64())
 
 		fmt.Println(va.Type())
 		// create a slice of the elements needed
@@ -81,9 +78,9 @@ func setValue(va reflect.Value, inja *Injectable) error {
 			va.Set(reflect.AppendSlice(va, newSlice))
 		}
 
-		return setValue(va.Index(indexInt), inja)
+		return setValue(va.Index(indexInt), ctrl)
 	case reflect.Map:
-		if inja.key[0].Index == nil {
+		if ctrl.Key[0].Index == nil {
 			return fmt.Errorf("map type without index")
 		}
 
@@ -95,37 +92,34 @@ func setValue(va reflect.Value, inja *Injectable) error {
 
 		switch keyType.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			indexInt := int(inja.key[0].Index.GetInt64())
+			indexInt := int(ctrl.Key[0].Index.GetInt64())
 			iKey = reflect.ValueOf(indexInt)
 		case reflect.String:
-			iKey = reflect.ValueOf(inja.key[0].Index.GetString_()).Elem()
+			iKey = reflect.ValueOf(ctrl.Key[0].Index.GetString_()).Elem()
 		default:
 			panic("I don't know what i'm doing here")
 		}
 
 		switch valueType {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			indexInt, err := strconv.Atoi(inja.value)
-			if err != nil {
-				return fmt.Errorf("could not convert %s to int", inja.value)
-			}
+			indexInt := int(ctrl.Value.GetInt64())
 			iValue = reflect.ValueOf(indexInt)
 		case reflect.String:
-			iValue = reflect.ValueOf(inja.value)
+			iValue = reflect.ValueOf(ctrl.Value.GetString_())
 		default:
 			panic("I don't know what i'm doing here")
 		}
 		zeroValue := reflect.Value{}
 		if iKey == zeroValue || iValue == zeroValue {
-			return fmt.Errorf("keys or value Value is zero")
+			return fmt.Errorf("keys or Value Value is zero")
 		}
 		va.SetMapIndex(iKey, iValue)
 		return nil
-		// indexInt, err := strconv.Atoi(*inja.key[0].index)
+		// indexInt, err := strconv.Atoi(*ctrl.Key[0].index)
 		// if err!= nil {
-		//     return fmt.Errorf("could not convert %s to int", *inja.key[0].index)
+		//     return fmt.Errorf("could not convert %s to int", *ctrl.Key[0].index)
 		// }
-		// return setValue(va.MapIndex(reflect.ValueOf(indexInt)), inja)
+		// return setValue(va.MapIndex(reflect.ValueOf(indexInt)), ctrl)
 	case reflect.Struct:
 	default:
 		panic("setValue used on unknown type")

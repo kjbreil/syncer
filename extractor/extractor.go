@@ -17,7 +17,7 @@ type Differences struct {
 	delete   bool
 }
 
-func New(data any) (*Extractor, error) {
+func New(data any) *Extractor {
 
 	t := reflect.TypeOf(data)
 	for t.Kind() == reflect.Ptr {
@@ -28,7 +28,11 @@ func New(data any) (*Extractor, error) {
 	aStruct := dataStruct.Interface()
 	return &Extractor{
 		data: aStruct,
-	}, nil
+	}
+}
+
+func (ext *Extractor) Data() any {
+	return ext.data
 }
 
 func (d *Differences) Entries() []*control.Entry {

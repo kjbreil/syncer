@@ -40,7 +40,7 @@ package injector
 // 		t.Fatal(err)
 // 	}
 // 	if ts.String != "Test2" {
-// 		t.Fatal("failed to add string value at base level")
+// 		t.Fatal("failed to add string Value at base level")
 // 	}
 //
 // 	err = inj.Add(parse("testStruct.Slice[0]", "S0N", Add))
@@ -48,7 +48,7 @@ package injector
 // 		t.Fatal(err)
 // 	}
 // 	if ts.Slice[0] != "S0N" {
-// 		t.Fatal("failed to add slice value at base level")
+// 		t.Fatal("failed to add slice Value at base level")
 // 	}
 //
 // 	err = inj.Add(parse("testStruct.Slice[5]", "S5", Add))
@@ -56,7 +56,7 @@ package injector
 // 		t.Fatal(err)
 // 	}
 // 	if ts.Slice[5] != "S5" {
-// 		t.Fatal("failed to add slice value at base level")
+// 		t.Fatal("failed to add slice Value at base level")
 // 	}
 //
 // 	err = inj.Add(parse("testStruct.Map[1]", "M1N", Add))
@@ -64,7 +64,7 @@ package injector
 // 		t.Fatal(err)
 // 	}
 // 	if ts.Map[1] != "M1N" {
-// 		t.Fatal("failed to add map value at base level")
+// 		t.Fatal("failed to add map Value at base level")
 // 	}
 //
 // 	err = inj.Add(parse("testStruct.Map[2]", "M2", Add))
@@ -72,7 +72,7 @@ package injector
 // 		t.Fatal(err)
 // 	}
 // 	if ts.Map[2] != "M2" {
-// 		t.Fatal("failed to add map value at base level")
+// 		t.Fatal("failed to add map Value at base level")
 // 	}
 //
 // }

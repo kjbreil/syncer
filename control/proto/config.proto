@@ -10,7 +10,7 @@ message Message {
     GET_ALL = 2;
     RESET = 3;
   }
-  repeated Entry Entries = 8;
+  ActionType action = 1;
 }
 
 message Response{
@@ -18,6 +18,14 @@ message Response{
     OK = 0;
     ERROR = 1;
   }
+  ResponseType type = 1;
+}
+message Request{
+  enum RequestType {
+    CHANGES = 0;
+    INIT = 1;
+  }
+  RequestType type = 1;
 }
 
 message Entry {
@@ -43,4 +51,9 @@ message Object {
   optional double double = 5;
   optional bool bool = 6;
   optional bytes bytes = 7;
+}
+
+service Config {
+  rpc Update(Request) returns (stream Entry) {}
+  rpc Control(Message) returns (Response) {}
 }
