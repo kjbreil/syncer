@@ -1,0 +1,46 @@
+syntax = "proto3";
+package control;
+
+option go_package = "/control";
+
+message Message {
+  enum ActionType {
+    ADD = 0;
+    REMOVE = 1;
+    GET_ALL = 2;
+    RESET = 3;
+  }
+  repeated Entry Entries = 8;
+}
+
+message Response{
+  enum ResponseType {
+    OK = 0;
+    ERROR = 1;
+  }
+}
+
+message Entry {
+  repeated Key Key = 1;
+  Object Value = 2;
+  enum ActionType {
+    ADD = 0;
+    REMOVE = 1;
+  }
+  ActionType Action = 3;
+}
+
+message Key {
+  string Key = 1;
+  optional Object Index = 2;
+}
+
+message Object {
+  optional string string = 1;
+  optional int64 int64 = 2;
+  optional uint64 uint64 = 3;
+  optional float float = 4;
+  optional double double = 5;
+  optional bool bool = 6;
+  optional bytes bytes = 7;
+}
