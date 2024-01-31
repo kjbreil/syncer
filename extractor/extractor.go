@@ -73,7 +73,6 @@ func (d *Differences) entries() []*control.Entry {
 }
 
 func (ext *Extractor) Diff(data any) *Differences {
-
 	newValue := reflect.ValueOf(data)
 	oldValue := reflect.ValueOf(ext.data)
 
@@ -94,7 +93,6 @@ func (ext *Extractor) Diff(data any) *Differences {
 
 	headName := oldType.Name()
 	head := &Differences{
-		// children: []*Differences{},
 		key: []*control.Key{
 			{
 				Key: headName,
@@ -240,7 +238,8 @@ func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.
 			extractChildren(parent, child, newValue.Field(i), oldValue.Field(i), &hasChildren)
 
 		default:
-			if makeString(newValue.Field(i)) != makeString(oldValue.Field(i)) {
+			// if makeString(newValue.Field(i)) != makeString(oldValue.Field(i)) {
+			if !equal(newValue.Field(i), oldValue.Field(i)) {
 				child.value = &control.Object{}
 				setValue(newValue.Field(i), child)
 
@@ -310,6 +309,7 @@ func extractNonStruct(parent *Differences, newValue reflect.Value, oldValue refl
 				Key:   key,
 				Index: &indexObject,
 			}),
+			value: &control.Object{},
 		}
 		setValue(newValue, child)
 
@@ -340,8 +340,27 @@ func extractChildren(parent *Differences, child *Differences, newValue reflect.V
 	}
 }
 
-func equal(newValue reflect.Value, oldValue reflect.Value) bool {
-	return makeString(newValue) == makeString(oldValue)
+func equal(n reflect.Value, o reflect.Value) bool {
+
+	if n.Kind() != o.Kind() {
+		return false
+	}
+	switch n.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return n.Int() == o.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return n.Uint() == o.Uint()
+	case reflect.String:
+		return n.String() == o.String()
+	case reflect.Bool:
+		return n.Bool() == o.Bool()
+	case reflect.Float32, reflect.Float64:
+		return n.Float() == o.Float()
+	case reflect.Complex64, reflect.Complex128:
+		return n.Complex() == o.Complex()
+	default:
+		return false
+	}
 }
 
 func makeString(x reflect.Value) string {

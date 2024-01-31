@@ -63,18 +63,11 @@ func add(data any, ctrl *control.Entry) error {
 
 func setValue(va reflect.Value, ctrl *control.Entry) error {
 	switch va.Kind() {
-	case reflect.String:
-		va.SetString(ctrl.Value.GetString_())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i := int(ctrl.Value.GetInt64())
-		va.SetInt(int64(i))
 	case reflect.Slice:
 		if ctrl.Key[0].Index == nil {
 			return fmt.Errorf("slice type without index")
 		}
 		indexInt := int(ctrl.Key[0].Index.GetInt64())
-
-		fmt.Println(va.Type())
 		// create a slice of the elements needed
 		diff := indexInt + 1 - va.Len()
 		if diff > 0 {
@@ -126,7 +119,7 @@ func setValue(va reflect.Value, ctrl *control.Entry) error {
 		// return setValue(va.MapIndex(reflect.ValueOf(indexInt)), ctrl)
 	case reflect.Struct:
 	default:
-		panic("setValue used on unknown type")
+		return ctrl.Value.SetValue(va)
 	}
 	return nil
 }

@@ -45,8 +45,8 @@ message Object {
   optional string string = 1;
   optional int64 int64 = 2;
   optional uint64 uint64 = 3;
-  optional float float = 4;
-  optional double double = 5;
+  optional float float32 = 4;
+  optional double float64 = 5;
   optional bool bool = 6;
   optional bytes bytes = 7;
 }

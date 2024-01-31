@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/injector"
-	"io"
-	"log"
 	"log/slog"
 	"math/rand"
 	"net"
@@ -110,31 +107,12 @@ func (e *Endpoint) run(onlyClient bool) {
 			_ = e.tryPeers(true)
 		}
 
-		// rand.Seed(time.Now().UnixNano())
+		// Randomize the sleep time from 100-1000 milliseconds
 		r := rand.Intn(900) + 100
 		// try and connect to peers
 		time.Sleep(time.Duration(r) * time.Millisecond)
 	}
 
-}
-
-func (e *Endpoint) getChanges() error {
-	update, err := e.client.c.Update(e.client.ctx, &control.Request{Type: control.Request_INIT})
-	if err != nil {
-		return err
-	}
-	for {
-		in, err := update.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatalf("client.RouteChat failed: %v", err)
-		}
-		log.Printf("Got message Value %s", in.Value)
-
-	}
-	return nil
 }
 
 var (
