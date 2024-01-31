@@ -35,6 +35,18 @@ func (ext *Extractor) Data() any {
 	return ext.data
 }
 
+func (ext *Extractor) Reset() {
+	t := reflect.TypeOf(ext.data)
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	dataStruct := reflect.New(t)
+	aStruct := dataStruct.Interface()
+
+	ext.data = aStruct
+}
+
 func (d *Differences) Entries() []*control.Entry {
 	return d.entries()
 }

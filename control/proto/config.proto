@@ -5,10 +5,8 @@ option go_package = "/control";
 
 message Message {
   enum ActionType {
-    ADD = 0;
-    REMOVE = 1;
-    GET_ALL = 2;
-    RESET = 3;
+    PING = 0;
+    SHUTDOWN = 1;
   }
   ActionType action = 1;
 }

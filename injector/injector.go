@@ -27,6 +27,10 @@ func New(data any) (*Injector, error) {
 func (inj *Injector) Add(ctrl *control.Entry) error {
 	return add(inj.data, ctrl)
 }
+
+func (inj *Injector) Data() any {
+	return inj.data
+}
 func add(data any, ctrl *control.Entry) error {
 	v := reflect.ValueOf(data)
 
