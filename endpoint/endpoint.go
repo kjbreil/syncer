@@ -159,7 +159,10 @@ func (e *Endpoint) tryPeers(stop bool) error {
 	return ErrClientServerNonAvailable
 }
 func (e *Endpoint) Stop() {
+	e.logger.Info("stopping endpoint")
 	e.cancel()
+	e.logger.Info("endpoint stopped")
+	e.wg.Wait()
 }
 
 // Running returns true if the endpoint is running
