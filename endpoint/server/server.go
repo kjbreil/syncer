@@ -1,4 +1,4 @@
-package endpoint
+package server
 
 import (
 	"context"
@@ -7,9 +7,10 @@ import (
 	"github.com/kjbreil/syncer/extractor"
 	"google.golang.org/grpc"
 	"net"
+	"sync"
 )
 
-type server struct {
+type Server struct {
 	control.UnimplementedConfigServer
 	grpcServer *grpc.Server
 	errors     chan error
@@ -17,6 +18,7 @@ type server struct {
 	data       any
 	ctx        context.Context
 	cancel     context.CancelFunc
+	wg         *sync.WaitGroup
 }
 
 var (
@@ -24,8 +26,7 @@ var (
 	ErrServerListen = fmt.Errorf("server could not start listening")
 )
 
-func newServer(port int, data any, errors chan error) (*server, error) {
-
+func New(ctx context.Context, wg *sync.WaitGroup, data any, port int, errors chan error) (*Server, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrServerListen, err)
@@ -34,15 +35,14 @@ func newServer(port int, data any, errors chan error) (*server, error) {
 
 	ext := extractor.New(data)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	var s = &server{
+	var s = &Server{
 		grpcServer: grpc.NewServer(opts...),
 		errors:     errors,
 		extractor:  ext,
 		data:       data,
-		ctx:        ctx,
-		cancel:     cancel,
+		wg:         wg,
 	}
+	s.ctx, s.cancel = context.WithCancel(ctx)
 
 	control.RegisterConfigServer(s.grpcServer, s)
 	go func() {
@@ -51,13 +51,25 @@ func newServer(port int, data any, errors chan error) (*server, error) {
 			s.errors <- fmt.Errorf("%w: %w", ErrServerExited, err)
 		}
 		s.errors <- ErrServerExited
-		cancel()
+		s.cancel()
+	}()
+
+	wg.Add(1)
+	go func() {
+		<-s.ctx.Done()
+		s.grpcServer.Stop()
+		wg.Done()
+		return
 	}()
 
 	return s, nil
 }
 
-func (s *server) Update(req *control.Request, srv control.Config_UpdateServer) error {
+func (s *Server) Running() bool {
+	return s.ctx.Err() == nil
+}
+
+func (s *Server) Update(req *control.Request, srv control.Config_UpdateServer) error {
 	switch req.GetType() {
 	case control.Request_INIT:
 		s.extractor.Reset()
@@ -76,7 +88,7 @@ func (s *server) Update(req *control.Request, srv control.Config_UpdateServer) e
 	return nil
 }
 
-func (s *server) Control(ctx context.Context, message *control.Message) (*control.Response, error) {
+func (s *Server) Control(_ context.Context, message *control.Message) (*control.Response, error) {
 	switch message.Action {
 	case control.Message_PING:
 		return &control.Response{}, nil
@@ -86,8 +98,4 @@ func (s *server) Control(ctx context.Context, message *control.Message) (*contro
 	default:
 		return &control.Response{}, nil
 	}
-}
-
-func (s *server) stop() {
-	s.grpcServer.Stop()
 }
