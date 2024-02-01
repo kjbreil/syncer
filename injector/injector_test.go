@@ -42,8 +42,8 @@ func TestInjector_Add(t *testing.T) {
 
 	err = inj.Add(&control.Entry{
 		Key: []*control.Key{
-			&control.Key{Key: "testStruct"},
-			&control.Key{Key: "String"},
+			{Key: "testStruct"},
+			{Key: "String"},
 		},
 		Value: control.NewObject("Test2"),
 	})

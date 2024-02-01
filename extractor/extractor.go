@@ -134,101 +134,11 @@ func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.
 
 		switch newValueFieldKind {
 		case reflect.Pointer:
-			if newValue.Field(i).IsNil() {
-				if !oldValue.Field(i).IsNil() {
-					child.delete = true
-					parent.children = append(parent.children, child)
-					if oldValue.CanSet() {
-						oldValue.Set(newValue)
-					}
-				}
-				continue
-			}
-			if oldValue.Field(i).IsNil() {
-				oldValue.Field(i).Set(reflect.New(newValue.Field(i).Elem().Type()))
-			}
-			extractChildren(parent, child, newValue.Field(i).Elem(), oldValue.Field(i).Elem(), &hasChildren)
+			extractLevelPointer(parent, newValue, oldValue, i, child, hasChildren)
 		case reflect.Map:
-			// Make the map for the oldValue if it doesn't exist
-			if oldValue.Field(i).Len() == 0 {
-				keyType := oldType.Field(i).Type.Key()
-				valueType := oldType.Field(i).Type.Elem()
-				mapType := reflect.MapOf(keyType, valueType)
-				if oldValue.Field(i).CanSet() {
-					oldValue.Field(i).Set(reflect.MakeMapWithSize(mapType, 0))
-				}
-			}
-			for _, k := range newValue.Field(i).MapKeys() {
-				// append that value to the oldValue slice
-				zeroValue := reflect.Value{}
-				if oldValue.Field(i).MapIndex(k) == zeroValue {
-					// create a dataStruct of the type in the slice to append to the oldValue slice
-					dataStruct := reflect.New(newValue.Field(i).MapIndex(k).Type()).Elem()
-					oldValue.Field(i).SetMapIndex(k, dataStruct)
-				}
-
-				if newValue.Field(i).MapIndex(k).Type().Kind() == reflect.Ptr {
-					extractChildren(parent, child, newValue.Field(i).MapIndex(k).Elem(), oldValue.Field(i).MapIndex(k).Elem(), &hasChildren)
-				} else if newValue.Field(i).MapIndex(k).Type().Kind() != reflect.Struct {
-					extractNonStruct(parent, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), makeString(k), key)
-				} else {
-					extractChildren(parent, child, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), &hasChildren)
-				}
-				// the address cannot be set so setting it manually
-				oldValue.Field(i).SetMapIndex(k, newValue.Field(i).MapIndex(k))
-			}
-			// find deletes
-			for _, k := range oldValue.Field(i).MapKeys() {
-
-				zeroValue := reflect.Value{}
-				if newValue.Field(i).MapIndex(k) == zeroValue {
-					deleteNonStruct(parent, makeString(k), key)
-					oldValue.Field(i).SetMapIndex(k, reflect.Value{})
-				}
-			}
+			extractLevelMap(parent, newValue, oldValue, i, oldType, child, hasChildren, key)
 		case reflect.Slice, reflect.Array:
-			shortest := min(newValue.Field(i).Len(), oldValue.Field(i).Len())
-
-			for ii := 0; ii < shortest; ii++ {
-				if equal(newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii)) {
-					continue
-				}
-				indexNewValue := newValue.Field(i).Index(ii)
-				if indexNewValue.Type().Kind() == reflect.Ptr {
-					extractNonStruct(parent, newValue.Field(i).Index(ii).Elem(), oldValue.Field(i).Index(ii).Elem(), ii, key)
-				} else if indexNewValue.Type().Kind() != reflect.Struct {
-					extractNonStruct(parent, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), ii, key)
-				} else {
-					extractChildren(parent, child, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), &hasChildren)
-				}
-			}
-			// new value has more data than the olddata
-			if newValue.Field(i).Len() > oldValue.Field(i).Len() {
-				for ii := shortest; ii < newValue.Field(i).Len(); ii++ {
-					// create a dataStruct of the type in the slice to append to the oldValue slice
-					dataStruct := reflect.New(newValue.Field(i).Index(ii).Type()).Elem()
-					// append that value to the oldValue slice
-					oldValue.Field(i).Set(reflect.Append(oldValue.Field(i), dataStruct))
-					// now extract
-					indexNewValue := newValue.Field(i).Index(ii)
-					if indexNewValue.Type().Kind() == reflect.Ptr {
-						extractNonStruct(parent, newValue.Field(i).Index(ii).Elem(), oldValue.Field(i).Index(ii).Elem(), ii, key)
-					} else if indexNewValue.Type().Kind() != reflect.Struct {
-						extractNonStruct(parent, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), ii, key)
-					} else {
-						extractChildren(parent, child, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), &hasChildren)
-					}
-				}
-			}
-			// oldValue slice is longer than the newValue so items were deleted
-			if oldValue.Field(i).Len() > newValue.Field(i).Len() {
-				for ii := shortest; ii < oldValue.Field(i).Len(); ii++ {
-					deleteNonStruct(parent, ii, key)
-				}
-			}
-
-			reflect.Copy(oldValue.Field(i), newValue.Field(i))
-			// oldValue.Field(i).Set(newValue.Field(i))
+			extractLevelSlice(parent, newValue, oldValue, i, key, child, hasChildren)
 		case reflect.Struct:
 			extractLevel(child, newValue.Field(i), oldValue.Field(i))
 			if child.children != nil {
@@ -236,9 +146,7 @@ func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.
 			}
 
 			extractChildren(parent, child, newValue.Field(i), oldValue.Field(i), &hasChildren)
-
 		default:
-			// if makeString(newValue.Field(i)) != makeString(oldValue.Field(i)) {
 			if !equal(newValue.Field(i), oldValue.Field(i)) {
 				child.value = &control.Object{}
 				setValue(newValue.Field(i), child)
@@ -253,6 +161,107 @@ func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.
 	return
 }
 
+func extractLevelSlice(parent *Differences, newValue reflect.Value, oldValue reflect.Value, i int, key string, child *Differences, hasChildren bool) {
+	shortest := min(newValue.Field(i).Len(), oldValue.Field(i).Len())
+
+	for ii := 0; ii < shortest; ii++ {
+		if equal(newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii)) {
+			continue
+		}
+		indexNewValue := newValue.Field(i).Index(ii)
+		if indexNewValue.Type().Kind() == reflect.Ptr {
+			extractNonStruct(parent, newValue.Field(i).Index(ii).Elem(), oldValue.Field(i).Index(ii).Elem(), ii, key)
+		} else if indexNewValue.Type().Kind() != reflect.Struct {
+			extractNonStruct(parent, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), ii, key)
+		} else {
+			extractChildren(parent, child, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), &hasChildren)
+		}
+	}
+	// new value has more data than the olddata
+	if newValue.Field(i).Len() > oldValue.Field(i).Len() {
+		for ii := shortest; ii < newValue.Field(i).Len(); ii++ {
+			// create a dataStruct of the type in the slice to append to the oldValue slice
+			dataStruct := reflect.New(newValue.Field(i).Index(ii).Type()).Elem()
+			// append that value to the oldValue slice
+			oldValue.Field(i).Set(reflect.Append(oldValue.Field(i), dataStruct))
+			// now extract
+			indexNewValue := newValue.Field(i).Index(ii)
+			if indexNewValue.Type().Kind() == reflect.Ptr {
+				extractNonStruct(parent, newValue.Field(i).Index(ii).Elem(), oldValue.Field(i).Index(ii).Elem(), ii, key)
+			} else if indexNewValue.Type().Kind() != reflect.Struct {
+				extractNonStruct(parent, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), ii, key)
+			} else {
+				extractChildren(parent, child, newValue.Field(i).Index(ii), oldValue.Field(i).Index(ii), &hasChildren)
+			}
+		}
+	}
+	// oldValue slice is longer than the newValue so items were deleted
+	if oldValue.Field(i).Len() > newValue.Field(i).Len() {
+		for ii := shortest; ii < oldValue.Field(i).Len(); ii++ {
+			deleteNonStruct(parent, ii, key)
+		}
+	}
+
+	reflect.Copy(oldValue.Field(i), newValue.Field(i))
+}
+
+func extractLevelMap(parent *Differences, newValue reflect.Value, oldValue reflect.Value, i int, oldType reflect.Type, child *Differences, hasChildren bool, key string) {
+	// Make the map for the oldValue if it doesn't exist
+	if oldValue.Field(i).Len() == 0 {
+		keyType := oldType.Field(i).Type.Key()
+		valueType := oldType.Field(i).Type.Elem()
+		mapType := reflect.MapOf(keyType, valueType)
+		if oldValue.Field(i).CanSet() {
+			oldValue.Field(i).Set(reflect.MakeMapWithSize(mapType, 0))
+		}
+	}
+	for _, k := range newValue.Field(i).MapKeys() {
+		// append that value to the oldValue slice
+		zeroValue := reflect.Value{}
+		if oldValue.Field(i).MapIndex(k) == zeroValue {
+			// create a dataStruct of the type in the slice to append to the oldValue slice
+			dataStruct := reflect.New(newValue.Field(i).MapIndex(k).Type()).Elem()
+			oldValue.Field(i).SetMapIndex(k, dataStruct)
+		}
+
+		if newValue.Field(i).MapIndex(k).Type().Kind() == reflect.Ptr {
+			extractChildren(parent, child, newValue.Field(i).MapIndex(k).Elem(), oldValue.Field(i).MapIndex(k).Elem(), &hasChildren)
+		} else if newValue.Field(i).MapIndex(k).Type().Kind() != reflect.Struct {
+			extractNonStruct(parent, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), makeString(k), key)
+		} else {
+			extractChildren(parent, child, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), &hasChildren)
+		}
+		// the address cannot be set so setting it manually
+		oldValue.Field(i).SetMapIndex(k, newValue.Field(i).MapIndex(k))
+	}
+	// find deletes
+	for _, k := range oldValue.Field(i).MapKeys() {
+
+		zeroValue := reflect.Value{}
+		if newValue.Field(i).MapIndex(k) == zeroValue {
+			deleteNonStruct(parent, makeString(k), key)
+			oldValue.Field(i).SetMapIndex(k, reflect.Value{})
+		}
+	}
+}
+
+func extractLevelPointer(parent *Differences, newValue reflect.Value, oldValue reflect.Value, i int, child *Differences, hasChildren bool) {
+	if newValue.Field(i).IsNil() {
+		if !oldValue.Field(i).IsNil() {
+			child.delete = true
+			parent.children = append(parent.children, child)
+			if oldValue.CanSet() {
+				oldValue.Set(newValue)
+			}
+		}
+		return
+	}
+	if oldValue.Field(i).IsNil() {
+		oldValue.Field(i).Set(reflect.New(newValue.Field(i).Elem().Type()))
+	}
+	extractChildren(parent, child, newValue.Field(i).Elem(), oldValue.Field(i).Elem(), &hasChildren)
+}
+
 func setValue(va reflect.Value, child *Differences) {
 	switch va.Kind() {
 	case reflect.Invalid:
@@ -264,9 +273,12 @@ func setValue(va reflect.Value, child *Differences) {
 		value := va.Uint()
 		child.value.Uint64 = &value
 	case reflect.Uintptr:
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float32:
+		value := float32(va.Float())
+		child.value.Float32 = &value
+	case reflect.Float64:
 		value := va.Float()
-		child.value.Double = &value
+		child.value.Float64 = &value
 	case reflect.Complex64, reflect.Complex128:
 	case reflect.Chan:
 	case reflect.Func:
