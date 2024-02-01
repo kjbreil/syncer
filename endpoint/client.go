@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/injector"
@@ -48,7 +49,7 @@ func (c *client) changes() {
 func (c *client) processUpdate(update control.Config_UpdateClient) {
 	for {
 		cfg, err := update.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

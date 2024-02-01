@@ -83,22 +83,22 @@ func TestEndpoint_Run(t *testing.T) {
 
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
-	// endpointOne.Stop()
+	endpointOne.Stop()
 	time.Sleep(10 * time.Second)
-	// endpointOne, err = New(&dataOne, portOne, peersOne)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// endpointOne.Run(false)
+	endpointOne, err = New(&dataOne, portOne, peersOne)
+	if err != nil {
+		t.Fatal(err)
+	}
+	endpointOne.Run(false)
 
 	dataTwo.String = "String3"
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
-	// endpointOne.client.changes()
+	endpointOne.client.changes()
 
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
-	endpointTwo.client.init()
+	// endpointTwo.client.init()
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
 }

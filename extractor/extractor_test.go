@@ -52,7 +52,7 @@ func TestNew(t *testing.T) {
 	ts := testStruct{
 		String: "Test",
 		// Int:    1,
-		// Slice: []int{1, 2},
+		Slice: []int{1, 2},
 		// SliceStruct: []sd{
 		// 	{
 		// 		name: "testName1",
@@ -110,7 +110,7 @@ func TestNew(t *testing.T) {
 
 	fmt.Println(moulds)
 
-	// ts.Slice[0] = 2
+	ts.Slice[0] = 2
 	// delete(ts.Map, "test2")
 	head = ext.Diff(ts)
 	moulds = head.Entries()
