@@ -37,6 +37,14 @@ func main() {
 		Port: 45012,
 	},
 	}
+	peersTwo := []net.TCPAddr{{
+		IP:   net.ParseIP("10.0.2.2"),
+		Port: 45012,
+	}, {
+		IP:   net.ParseIP("10.0.2.3"),
+		Port: 45012,
+	},
+	}
 
 	endpointOne, err := endpoint.New(&s.endpointOneData, 45012, peers)
 	if err != nil {
@@ -45,7 +53,7 @@ func main() {
 	endpointOne.SetLogger(slog.NewJSONHandler(io.Discard, nil))
 	s.endpointOne = endpointOne
 
-	endpointTwo, err := endpoint.New(&s.endpointTwoData, 45012, peers)
+	endpointTwo, err := endpoint.New(&s.endpointTwoData, 45012, peersTwo)
 	if err != nil {
 		panic(err)
 	}

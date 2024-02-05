@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/kjbreil/syncer/endpoint/client"
 	"github.com/kjbreil/syncer/endpoint/server"
+	settings2 "github.com/kjbreil/syncer/endpoint/settings"
 	"log/slog"
 	"math/big"
 	"net"
@@ -26,17 +27,19 @@ var (
 // The clients first attempt to connect to external servers
 // server then starts up
 type Endpoint struct {
-	port   int
-	peers  []net.TCPAddr
-	server *server.Server
-	client *client.Client
-	data   any
-	Errors chan error
-	logger *slog.Logger
+	// port   int `extractor:"-"`
+	// peers  []net.TCPAddr
+	settings *settings2.Settings
+	localIP  []net.IP
+	server   *server.Server `extractor:"-"`
+	client   *client.Client `extractor:"-"`
+	data     any            `extractor:"-"`
+	Errors   chan error     `extractor:"-"`
+	logger   *slog.Logger   `extractor:"-"`
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     *sync.WaitGroup
+	ctx    context.Context    `extractor:"-"`
+	cancel context.CancelFunc `extractor:"-"`
+	wg     *sync.WaitGroup    `extractor:"-"`
 }
 
 // New creates a new endpoint with the given port and peers
@@ -48,9 +51,11 @@ func New(data any, port int, peers []net.TCPAddr) (*Endpoint, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Endpoint{
-		port:   port,
-		peers:  peers,
+	ep := &Endpoint{
+		settings: &settings2.Settings{
+			Port:  port,
+			Peers: peers,
+		},
 		server: nil,
 		client: nil,
 		data:   data,
@@ -59,7 +64,9 @@ func New(data any, port int, peers []net.TCPAddr) (*Endpoint, error) {
 		wg:     &sync.WaitGroup{},
 		Errors: make(chan error, 100),
 		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
-	}, nil
+	}
+
+	return ep, nil
 }
 
 func (e *Endpoint) Run(onlyClient bool) {
@@ -117,10 +124,36 @@ func (e *Endpoint) run(onlyClient bool) {
 				e.logger.Info("Client Started")
 			}
 			if errors.Is(err, ErrClientServerNonAvailable) && !onlyClient {
-				e.server, err = server.New(e.ctx, e.wg, e.data, e.port, e.Errors)
+				e.server, err = server.New(e.ctx, e.wg, e.data, e.settings, e.Errors)
+
 				if err == nil {
 					e.logger.Info("Server Started")
 					checkPeersLast = time.Now()
+
+					ifaces, err := net.Interfaces()
+					if err != nil {
+						continue
+					}
+					e.localIP = nil
+					// handle err
+					for _, i := range ifaces {
+						addrs, err := i.Addrs()
+						if err != nil {
+							continue
+						}
+						for _, addr := range addrs {
+							var ip net.IP
+							switch v := addr.(type) {
+							case *net.IPNet:
+								ip = v.IP
+							case *net.IPAddr:
+								ip = v.IP
+							}
+							e.localIP = append(e.localIP, ip)
+							// process IP address
+						}
+					}
+
 				}
 			}
 		}
@@ -135,7 +168,7 @@ func (e *Endpoint) run(onlyClient bool) {
 		}
 		if e.server != nil && time.Since(checkPeersLast) > checkPeersDuration {
 			checkPeersLast = time.Now()
-			// _ = e.tryPeers(true)
+			_ = e.tryPeers(true)
 		}
 
 		// try and connect to peers using random milliseconds between 100 and 1000
@@ -148,8 +181,14 @@ func (e *Endpoint) tryPeers(stop bool) error {
 	if e.client != nil {
 		return ErrClientAlreadyConnected
 	}
-	for _, peer := range e.peers {
-		e.client, err = client.New(e.ctx, e.wg, e.data, peer, e.Errors)
+peerLoop:
+	for _, peer := range e.settings.Peers {
+		for _, ip := range e.localIP {
+			if ip.Equal(peer.IP) {
+				continue peerLoop
+			}
+		}
+		e.client, err = client.New(e.ctx, e.wg, e.data, peer, e.Errors, e.settings)
 		if err == nil {
 			if stop {
 				e.client.ShutdownRemoteServer()

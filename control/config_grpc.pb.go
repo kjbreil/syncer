@@ -22,7 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigClient interface {
-	Update(ctx context.Context, in *Request, opts ...grpc.CallOption) (Config_UpdateClient, error)
+	Pull(ctx context.Context, in *Request, opts ...grpc.CallOption) (Config_PullClient, error)
+	Push(ctx context.Context, opts ...grpc.CallOption) (Config_PushClient, error)
 	Control(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Response, error)
 }
 
@@ -34,12 +35,12 @@ func NewConfigClient(cc grpc.ClientConnInterface) ConfigClient {
 	return &configClient{cc}
 }
 
-func (c *configClient) Update(ctx context.Context, in *Request, opts ...grpc.CallOption) (Config_UpdateClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Config_ServiceDesc.Streams[0], "/control.Config/Update", opts...)
+func (c *configClient) Pull(ctx context.Context, in *Request, opts ...grpc.CallOption) (Config_PullClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Config_ServiceDesc.Streams[0], "/control.Config/Pull", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &configUpdateClient{stream}
+	x := &configPullClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -49,17 +50,51 @@ func (c *configClient) Update(ctx context.Context, in *Request, opts ...grpc.Cal
 	return x, nil
 }
 
-type Config_UpdateClient interface {
+type Config_PullClient interface {
 	Recv() (*Entry, error)
 	grpc.ClientStream
 }
 
-type configUpdateClient struct {
+type configPullClient struct {
 	grpc.ClientStream
 }
 
-func (x *configUpdateClient) Recv() (*Entry, error) {
+func (x *configPullClient) Recv() (*Entry, error) {
 	m := new(Entry)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *configClient) Push(ctx context.Context, opts ...grpc.CallOption) (Config_PushClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Config_ServiceDesc.Streams[1], "/control.Config/Push", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &configPushClient{stream}
+	return x, nil
+}
+
+type Config_PushClient interface {
+	Send(*Entry) error
+	CloseAndRecv() (*Response, error)
+	grpc.ClientStream
+}
+
+type configPushClient struct {
+	grpc.ClientStream
+}
+
+func (x *configPushClient) Send(m *Entry) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *configPushClient) CloseAndRecv() (*Response, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(Response)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -79,7 +114,8 @@ func (c *configClient) Control(ctx context.Context, in *Message, opts ...grpc.Ca
 // All implementations must embed UnimplementedConfigServer
 // for forward compatibility
 type ConfigServer interface {
-	Update(*Request, Config_UpdateServer) error
+	Pull(*Request, Config_PullServer) error
+	Push(Config_PushServer) error
 	Control(context.Context, *Message) (*Response, error)
 	mustEmbedUnimplementedConfigServer()
 }
@@ -88,8 +124,11 @@ type ConfigServer interface {
 type UnimplementedConfigServer struct {
 }
 
-func (UnimplementedConfigServer) Update(*Request, Config_UpdateServer) error {
-	return status.Errorf(codes.Unimplemented, "method Update not implemented")
+func (UnimplementedConfigServer) Pull(*Request, Config_PullServer) error {
+	return status.Errorf(codes.Unimplemented, "method Pull not implemented")
+}
+func (UnimplementedConfigServer) Push(Config_PushServer) error {
+	return status.Errorf(codes.Unimplemented, "method Push not implemented")
 }
 func (UnimplementedConfigServer) Control(context.Context, *Message) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Control not implemented")
@@ -107,25 +146,51 @@ func RegisterConfigServer(s grpc.ServiceRegistrar, srv ConfigServer) {
 	s.RegisterService(&Config_ServiceDesc, srv)
 }
 
-func _Config_Update_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _Config_Pull_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(Request)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(ConfigServer).Update(m, &configUpdateServer{stream})
+	return srv.(ConfigServer).Pull(m, &configPullServer{stream})
 }
 
-type Config_UpdateServer interface {
+type Config_PullServer interface {
 	Send(*Entry) error
 	grpc.ServerStream
 }
 
-type configUpdateServer struct {
+type configPullServer struct {
 	grpc.ServerStream
 }
 
-func (x *configUpdateServer) Send(m *Entry) error {
+func (x *configPullServer) Send(m *Entry) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func _Config_Push_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ConfigServer).Push(&configPushServer{stream})
+}
+
+type Config_PushServer interface {
+	SendAndClose(*Response) error
+	Recv() (*Entry, error)
+	grpc.ServerStream
+}
+
+type configPushServer struct {
+	grpc.ServerStream
+}
+
+func (x *configPushServer) SendAndClose(m *Response) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *configPushServer) Recv() (*Entry, error) {
+	m := new(Entry)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _Config_Control_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -160,9 +225,14 @@ var Config_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Update",
-			Handler:       _Config_Update_Handler,
+			StreamName:    "Pull",
+			Handler:       _Config_Pull_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "Push",
+			Handler:       _Config_Push_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "control/proto/config.proto",

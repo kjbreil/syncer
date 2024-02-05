@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kjbreil/syncer/control"
+	"github.com/kjbreil/syncer/endpoint/settings"
 	"github.com/kjbreil/syncer/extractor"
 	"github.com/kjbreil/syncer/injector"
 	"google.golang.org/grpc"
@@ -28,6 +29,8 @@ type Client struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	settings *settings.Settings
+
 	injector *injector.Injector
 	// client extractor not used yet
 	extractor *extractor.Extractor
@@ -35,12 +38,13 @@ type Client struct {
 	errors chan error
 }
 
-func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, errs chan error) (*Client, error) {
+func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, errs chan error, settings *settings.Settings) (*Client, error) {
 	var err error
 
 	c := &Client{
-		peer:   peer,
-		errors: errs,
+		peer:     peer,
+		errors:   errs,
+		settings: settings,
 	}
 
 	c.ctx, c.cancel = context.WithCancel(ctx)
@@ -100,12 +104,36 @@ func (c *Client) Running() bool {
 
 // Init requests to init data from the server
 func (c *Client) Init() {
-	update, err := c.c.Update(c.ctx, &control.Request{Type: control.Request_INIT})
+	update, err := c.c.Pull(c.ctx, &control.Request{Type: control.Request_INIT})
 	if err != nil {
 		c.errors <- fmt.Errorf("Client.Init(): %w", err)
 		return
 	}
 	c.processUpdate(update)
+
+	// s, err := c.c.Push(c.ctx)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	//
+	// for {
+	// 	cfg, err := s.Send()
+	// 	if errors.Is(err, io.EOF) {
+	// 		break
+	// 	}
+	// 	if err != nil {
+	// 		if err != nil {
+	// 			c.errors <- fmt.Errorf("Client.processUpdate(): %w", err)
+	// 		}
+	// 		c.cancel()
+	// 		return
+	// 	}
+	// 	err = c.injector.Add(cfg)
+	// 	if err != nil {
+	// 		c.errors <- err
+	// 	}
+	// }
+
 }
 
 // ShutdownRemoteServer requests to shut down the server
@@ -118,7 +146,7 @@ func (c *Client) ShutdownRemoteServer() {
 }
 
 func (c *Client) Changes() {
-	update, err := c.c.Update(c.ctx, &control.Request{Type: control.Request_INIT})
+	update, err := c.c.Pull(c.ctx, &control.Request{Type: control.Request_CHANGES})
 	if err != nil {
 		c.errors <- fmt.Errorf("Client.changes(): %w", err)
 		return
@@ -126,7 +154,7 @@ func (c *Client) Changes() {
 	c.processUpdate(update)
 }
 
-func (c *Client) processUpdate(update control.Config_UpdateClient) {
+func (c *Client) processUpdate(update control.Config_PullClient) {
 	for {
 		cfg, err := update.Recv()
 		if errors.Is(err, io.EOF) {

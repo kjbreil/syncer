@@ -65,6 +65,7 @@ message History {
 }
 
 service Config {
-  rpc Update(Request) returns (stream Entry) {}
+  rpc Pull(Request) returns (stream Entry) {}
+  rpc Push(stream Entry) returns (Response) {}
   rpc Control(Message) returns (Response) {}
 }

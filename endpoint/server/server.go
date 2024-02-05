@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kjbreil/syncer/control"
+	"github.com/kjbreil/syncer/endpoint/settings"
 	"github.com/kjbreil/syncer/extractor"
 	"github.com/kjbreil/syncer/injector"
 	"google.golang.org/grpc"
@@ -32,8 +33,8 @@ var (
 	ErrServerInjector = fmt.Errorf("server could not create injector")
 )
 
-func New(ctx context.Context, wg *sync.WaitGroup, data any, port int, errors chan error) (*Server, error) {
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.Settings, errors chan error) (*Server, error) {
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", settings.Port))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrServerListen, err)
 	}
@@ -80,7 +81,7 @@ func (s *Server) Running() bool {
 	return s.ctx.Err() == nil
 }
 
-func (s *Server) Update(req *control.Request, srv control.Config_UpdateServer) error {
+func (s *Server) Pull(req *control.Request, srv control.Config_PullServer) error {
 	switch req.GetType() {
 	case control.Request_INIT:
 		s.extractor.Reset()
