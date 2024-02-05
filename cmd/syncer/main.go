@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/kjbreil/syncer/endpoint"
+	"github.com/kjbreil/syncer/endpoint/settings"
 	"github.com/rivo/tview"
 	"log/slog"
 	"net"
@@ -31,23 +32,28 @@ func main() {
 		endpointTwoData: data{},
 	}
 
+	var port = 45012
+
 	peers := []net.TCPAddr{{
 		IP:   net.ParseIP("10.0.2.2"),
-		Port: 45012,
+		Port: port,
 	},
 	}
 	peersTwo := []net.TCPAddr{
 		{
 			IP:   net.ParseIP("10.0.2.2"),
-			Port: 45012,
+			Port: port,
 		},
 		{
 			IP:   net.ParseIP("10.0.2.3"),
-			Port: 45012,
+			Port: port,
 		},
 	}
 
-	endpointOne, err := endpoint.New(&s.endpointOneData, 45012, peers)
+	endpointOne, err := endpoint.New(&s.endpointOneData, &settings.Settings{
+		Peers: peers,
+		Port:  port,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -59,7 +65,11 @@ func main() {
 	// endpointOne.SetLogger(slog.NewJSONHandler(io.Discard, nil))
 	s.endpointOne = endpointOne
 
-	endpointTwo, err := endpoint.New(&s.endpointTwoData, 45012, peersTwo)
+	endpointTwo, err := endpoint.New(&s.endpointTwoData, &settings.Settings{
+		Peers:      peersTwo,
+		Port:       port,
+		AutoUpdate: true,
+	})
 	if err != nil {
 		panic(err)
 	}

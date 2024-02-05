@@ -87,6 +87,21 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 		}
 	}()
 
+	if settings.AutoUpdate {
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case <-time.After(time.Second):
+					c.Changes()
+				case <-c.ctx.Done():
+					wg.Done()
+					return
+				}
+			}
+		}()
+	}
+
 	_, err = c.c.Control(c.ctx, &control.Message{Action: control.Message_PING})
 	if err != nil {
 		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientNotAvailable, err))

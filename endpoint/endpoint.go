@@ -44,7 +44,7 @@ type Endpoint struct {
 
 // New creates a new endpoint with the given port and peers
 // Port is the port number of the server, all peer servers will listen on this port
-func New(data any, port int, peers []net.TCPAddr) (*Endpoint, error) {
+func New(data any, stngs *settings2.Settings) (*Endpoint, error) {
 	if reflect.ValueOf(data).Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
 	}
@@ -52,18 +52,15 @@ func New(data any, port int, peers []net.TCPAddr) (*Endpoint, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ep := &Endpoint{
-		settings: &settings2.Settings{
-			Port:  port,
-			Peers: peers,
-		},
-		server: nil,
-		client: nil,
-		data:   data,
-		ctx:    ctx,
-		cancel: cancel,
-		wg:     &sync.WaitGroup{},
-		Errors: make(chan error, 100),
-		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		settings: stngs,
+		server:   nil,
+		client:   nil,
+		data:     data,
+		ctx:      ctx,
+		cancel:   cancel,
+		wg:       &sync.WaitGroup{},
+		Errors:   make(chan error, 100),
+		logger:   slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
 
 	return ep, nil

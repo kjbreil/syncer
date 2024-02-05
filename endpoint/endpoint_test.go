@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"fmt"
+	"github.com/kjbreil/syncer/endpoint/settings"
 	"net"
 	"testing"
 	"time"
@@ -56,12 +57,20 @@ func TestEndpoint_Run(t *testing.T) {
 		String: "",
 	}
 
-	endpointOne, err := New(&dataOne, portOne, peersOne)
+	endpointOne, err := New(&dataOne, &settings.Settings{
+		Port:       portOne,
+		Peers:      peersOne,
+		AutoUpdate: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	endpointTwo, err := New(&dataTwo, portTwo, peersTwo)
+	endpointTwo, err := New(&dataTwo, &settings.Settings{
+		Port:       portTwo,
+		Peers:      peersTwo,
+		AutoUpdate: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +94,11 @@ func TestEndpoint_Run(t *testing.T) {
 	fmt.Println(dataTwo.String)
 	endpointOne.Stop()
 	time.Sleep(10 * time.Second)
-	endpointOne, err = New(&dataOne, portOne, peersOne)
+	endpointOne, err = New(&dataOne, &settings.Settings{
+		Port:       portOne,
+		Peers:      peersOne,
+		AutoUpdate: true,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

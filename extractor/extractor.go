@@ -22,7 +22,7 @@ func New(data any) *Extractor {
 	aStruct := dataStruct.Interface()
 	return &Extractor{
 		data:    aStruct,
-		history: make([]*control.Diff, 0, 2),
+		history: make([]*control.Diff, 0, 100),
 	}
 }
 
@@ -88,7 +88,6 @@ func (ext *Extractor) addHistory(head *control.Diff) {
 	if len(head.Children) == 0 {
 		return
 	}
-	fmt.Println(len(ext.history), cap(ext.history))
 	if len(ext.history) == cap(ext.history) {
 		for i := 0; i < len(ext.history)-1; i++ {
 			ext.history[i] = ext.history[i+1]
