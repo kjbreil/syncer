@@ -135,7 +135,7 @@ func (e *Endpoint) run(onlyClient bool) {
 		}
 		if e.server != nil && time.Since(checkPeersLast) > checkPeersDuration {
 			checkPeersLast = time.Now()
-			_ = e.tryPeers(true)
+			// _ = e.tryPeers(true)
 		}
 
 		// try and connect to peers using random milliseconds between 100 and 1000

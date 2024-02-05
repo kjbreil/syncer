@@ -60,6 +60,10 @@ message Diff {
   google.protobuf.Timestamp time = 5;
 }
 
+message History {
+  repeated Diff history = 1;
+}
+
 service Config {
   rpc Update(Request) returns (stream Entry) {}
   rpc Control(Message) returns (Response) {}

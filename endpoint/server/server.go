@@ -15,12 +15,15 @@ type Server struct {
 	control.UnimplementedConfigServer
 	grpcServer *grpc.Server
 	errors     chan error
-	extractor  *extractor.Extractor
-	injector   *injector.Injector
-	data       any
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         *sync.WaitGroup
+
+	extractor *extractor.Extractor
+	// server injector not used yet
+	injector *injector.Injector
+
+	data   any
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     *sync.WaitGroup
 }
 
 var (

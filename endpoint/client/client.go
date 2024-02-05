@@ -25,11 +25,14 @@ type Client struct {
 	conn *grpc.ClientConn
 	peer net.TCPAddr
 
-	ctx       context.Context
-	cancel    context.CancelFunc
-	injector  *injector.Injector
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	injector *injector.Injector
+	// client extractor not used yet
 	extractor *extractor.Extractor
-	errors    chan error
+
+	errors chan error
 }
 
 func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, errs chan error) (*Client, error) {
