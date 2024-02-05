@@ -116,6 +116,11 @@ func extractLevel(parent *control.Diff, newValue reflect.Value, oldValue reflect
 			panic("this shouldn't happen")
 		}
 
+		etag := newType.Field(i).Tag.Get("extractor")
+		if etag == "-" {
+			continue
+		}
+
 		newValueFieldKind := newValue.Field(i).Kind()
 
 		key := oldType.Field(i).Name
