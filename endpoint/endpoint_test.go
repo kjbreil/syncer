@@ -72,14 +72,14 @@ func TestEndpoint_Run(t *testing.T) {
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
 
-	endpointTwo.client.init()
+	endpointTwo.client.Init()
 
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
 	dataOne.String = "String2"
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
-	endpointTwo.client.changes()
+	endpointTwo.client.Changes()
 
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
@@ -94,11 +94,41 @@ func TestEndpoint_Run(t *testing.T) {
 	dataTwo.String = "String3"
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
-	endpointOne.client.changes()
+	endpointOne.client.Changes()
 
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
-	// endpointTwo.client.init()
+	// endpointTwo.Client.Init()
 	fmt.Println(dataOne.String)
 	fmt.Println(dataTwo.String)
+	endpointOne.Stop()
+	endpointTwo.Stop()
+	endpointOne.Wait()
+	endpointTwo.Wait()
+}
+
+func Test_randomInt(t *testing.T) {
+	type args struct {
+		l int
+		h int
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "",
+			args: args{
+				l: 100,
+				h: 1000,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := randomInt(tt.args.l, tt.args.h); got > tt.args.h || got < tt.args.l {
+				t.Errorf("randomInt() = %v, which is outside %d and %d", got, tt.args.l, tt.args.h)
+			}
+		})
+	}
 }

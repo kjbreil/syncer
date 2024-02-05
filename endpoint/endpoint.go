@@ -69,9 +69,9 @@ func (e *Endpoint) Run(onlyClient bool) {
 	// add two WG because there are two goroutines started in e.run
 	e.wg.Add(2)
 	go e.run(onlyClient)
-	for !e.Running() {
-		time.Sleep(100 * time.Millisecond)
-	}
+	// for !e.Running() {
+	// 	time.Sleep(100 * time.Millisecond)
+	// }
 }
 
 // IsServer returns true if the endpoint is running as a server
@@ -84,9 +84,13 @@ func (e *Endpoint) Wait() {
 	e.wg.Wait()
 }
 
+func (e *Endpoint) SetLogger(handler slog.Handler) {
+	e.logger = slog.New(handler)
+}
+
 func (e *Endpoint) run(onlyClient bool) {
 	var err error
-
+	e.ctx, e.cancel = context.WithCancel(context.Background())
 	checkPeersDuration := time.Minute
 	checkPeersLast := time.Now()
 
@@ -163,11 +167,19 @@ func (e *Endpoint) Stop() {
 	e.cancel()
 	e.logger.Info("endpoint stopped")
 	e.wg.Wait()
+	e.client = nil
+	e.server = nil
 }
 
 // Running returns true if the endpoint is running
 func (e *Endpoint) Running() bool {
 	return e.server != nil || e.client != nil
+}
+
+func (e *Endpoint) ClientUpdate() {
+	if e.client != nil {
+		e.client.Changes()
+	}
 }
 
 func randomInt(l, h int) int {
