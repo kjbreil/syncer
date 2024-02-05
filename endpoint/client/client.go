@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/kjbreil/syncer/combined"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/endpoint/settings"
-	"github.com/kjbreil/syncer/extractor"
-	"github.com/kjbreil/syncer/injector"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"io"
@@ -31,9 +30,10 @@ type Client struct {
 
 	settings *settings.Settings
 
-	injector *injector.Injector
+	combined *combined.Combined
+	// injector *injector.Injector
 	// client extractor not used yet
-	extractor *extractor.Extractor
+	// extractor *extractor.Extractor
 
 	errors chan error
 }
@@ -51,10 +51,13 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts = append(opts, grpc.WithBlock())
 
 	addr := fmt.Sprintf("%s:%d", peer.IP.String(), peer.Port)
 
-	c.conn, err = grpc.Dial(addr, opts...)
+	dialCtx, cancel := context.WithTimeout(c.ctx, time.Second)
+	defer cancel()
+	c.conn, err = grpc.DialContext(dialCtx, addr, opts...)
 	if err != nil {
 		c.cancel()
 		return nil, ErrClientNotAvailable
@@ -89,8 +92,10 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientNotAvailable, err))
 	}
 
-	c.extractor = extractor.New(data)
-	c.injector, err = injector.New(data)
+	// c.extractor = extractor.New(data)
+	// c.injector, err = injector.New(data)
+	c.combined, err = combined.New(data)
+
 	if err != nil {
 		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientInjector, err))
 	}
@@ -167,7 +172,7 @@ func (c *Client) processUpdate(update control.Config_PullClient) {
 			c.cancel()
 			return
 		}
-		err = c.injector.Add(cfg)
+		err = c.combined.Add(cfg)
 		if err != nil {
 			c.errors <- err
 		}

@@ -96,6 +96,8 @@ func (e *Endpoint) SetLogger(handler slog.Handler) {
 }
 
 func (e *Endpoint) run(onlyClient bool) {
+	e.localIP = nil
+
 	var err error
 	e.ctx, e.cancel = context.WithCancel(context.Background())
 	checkPeersDuration := time.Minute
@@ -160,13 +162,16 @@ func (e *Endpoint) run(onlyClient bool) {
 		// check if the Client exists but the context is canceled
 		if e.client != nil && !e.client.Running() {
 			e.logger.Info("Client Stopped")
+			e.localIP = nil
 			e.client = nil
 		}
 		if e.server != nil && !e.server.Running() {
 			e.logger.Info("Server Stopped")
+			e.localIP = nil
 			e.server = nil
 		}
 		if e.server != nil && time.Since(checkPeersLast) > checkPeersDuration {
+			e.logger.Info("testing for other servers")
 			checkPeersLast = time.Now()
 			_ = e.tryPeers(true)
 		}

@@ -3,10 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/kjbreil/syncer/combined"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/endpoint/settings"
-	"github.com/kjbreil/syncer/extractor"
-	"github.com/kjbreil/syncer/injector"
 	"google.golang.org/grpc"
 	"net"
 	"sync"
@@ -17,9 +16,11 @@ type Server struct {
 	grpcServer *grpc.Server
 	errors     chan error
 
-	extractor *extractor.Extractor
-	// server injector not used yet
-	injector *injector.Injector
+	combined *combined.Combined
+
+	// extractor *extractor.Extractor
+	// // server injector not used yet
+	// injector *injector.Injector
 
 	data   any
 	ctx    context.Context
@@ -40,18 +41,17 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.S
 	}
 	var opts []grpc.ServerOption
 
-	ext := extractor.New(data)
-
 	var s = &Server{
 		grpcServer: grpc.NewServer(opts...),
 		errors:     errors,
-		extractor:  ext,
-		data:       data,
-		wg:         wg,
+		// extractor:  ext,
+		data: data,
+		wg:   wg,
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
-	s.injector, err = injector.New(data)
+	// s.injector, err = injector.New(data)
+	s.combined, err = combined.New(data)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrServerInjector, err)
 	}
@@ -84,10 +84,10 @@ func (s *Server) Running() bool {
 func (s *Server) Pull(req *control.Request, srv control.Config_PullServer) error {
 	switch req.GetType() {
 	case control.Request_INIT:
-		s.extractor.Reset()
+		s.combined.Reset()
 		fallthrough
 	case control.Request_CHANGES:
-		head := s.extractor.Diff(s.data)
+		head := s.combined.Diff(s.data)
 		entries := head.Entries()
 		for _, e := range entries {
 			err := srv.Send(e)

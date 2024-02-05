@@ -23,6 +23,7 @@ message Request{
   enum RequestType {
     CHANGES = 0;
     INIT = 1;
+    SETTINGS = 2;
   }
   RequestType type = 1;
 }
@@ -67,5 +68,6 @@ message History {
 service Config {
   rpc Pull(Request) returns (stream Entry) {}
   rpc Push(stream Entry) returns (Response) {}
+  rpc PushPull(stream Entry) returns (stream Entry) {}
   rpc Control(Message) returns (Response) {}
 }

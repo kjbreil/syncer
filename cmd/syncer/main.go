@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/kjbreil/syncer/endpoint"
 	"github.com/rivo/tview"
-	"io"
 	"log/slog"
 	"net"
 	"time"
@@ -37,28 +36,42 @@ func main() {
 		Port: 45012,
 	},
 	}
-	peersTwo := []net.TCPAddr{{
-		IP:   net.ParseIP("10.0.2.2"),
-		Port: 45012,
-	}, {
-		IP:   net.ParseIP("10.0.2.3"),
-		Port: 45012,
-	},
+	peersTwo := []net.TCPAddr{
+		{
+			IP:   net.ParseIP("10.0.2.2"),
+			Port: 45012,
+		},
+		{
+			IP:   net.ParseIP("10.0.2.3"),
+			Port: 45012,
+		},
 	}
 
 	endpointOne, err := endpoint.New(&s.endpointOneData, 45012, peers)
 	if err != nil {
 		panic(err)
 	}
-	endpointOne.SetLogger(slog.NewJSONHandler(io.Discard, nil))
+	endpointOneLogInfo := tview.NewTextView()
+	endpointOneLogInfo.SetChangedFunc(func() {
+		endpointOneLogInfo.ScrollToEnd()
+	})
+	endpointOne.SetLogger(slog.NewTextHandler(endpointOneLogInfo, nil))
+	// endpointOne.SetLogger(slog.NewJSONHandler(io.Discard, nil))
 	s.endpointOne = endpointOne
 
 	endpointTwo, err := endpoint.New(&s.endpointTwoData, 45012, peersTwo)
 	if err != nil {
 		panic(err)
 	}
-	endpointTwo.SetLogger(slog.NewJSONHandler(io.Discard, nil))
+	endpointTwoLogInfo := tview.NewTextView()
+	endpointTwoLogInfo.SetChangedFunc(func() {
+		endpointTwoLogInfo.ScrollToEnd()
+	})
+	endpointTwo.SetLogger(slog.NewTextHandler(endpointTwoLogInfo, nil))
+	// endpointTwo.SetLogger(slog.NewJSONHandler(io.Discard, nil))
 	s.endpointTwo = endpointTwo
+
+	// logInfo.SetText("this is some text", false)
 
 	grid := tview.NewGrid().
 		SetRows(5).
@@ -67,7 +80,19 @@ func main() {
 		AddItem(s.makeEndpointControl("Endpoint One", s.endpointOne), 0, 0, 1, 1, 0, 0, false).
 		AddItem(s.makeEndpointControl("Endpoint Two", s.endpointTwo), 0, 1, 1, 1, 0, 0, false).
 		AddItem(s.makeEndpointForm(&s.endpointOneData), 1, 0, 1, 1, 0, 0, false).
-		AddItem(s.makeEndpointForm(&s.endpointTwoData), 1, 1, 1, 1, 0, 0, false)
+		AddItem(s.makeEndpointForm(&s.endpointTwoData), 1, 1, 1, 1, 0, 0, false).
+		AddItem(endpointOneLogInfo, 2, 0, 1, 1, 0, 0, false).
+		AddItem(endpointTwoLogInfo, 2, 1, 1, 1, 0, 0, false)
+
+	go func() {
+		time.Sleep(time.Second)
+		for {
+			<-time.After(time.Second)
+			app.QueueUpdateDraw(func() {
+				s.update()
+			})
+		}
+	}()
 
 	if err := app.SetRoot(grid, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
@@ -78,7 +103,14 @@ func (s *state) update() {
 	for _, f := range s.updateFunc {
 		f()
 	}
+
 }
+
+// func (s *state) makeLogData() *tview.TextView {
+// 	textView := tview.NewTextView()
+// 	textView.Set
+// 	return textView
+// }
 
 func (s *state) makeEndpointForm(data *data) *tview.Form {
 	f := tview.NewForm()
