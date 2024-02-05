@@ -1,5 +1,6 @@
 syntax = "proto3";
 package control;
+import "google/protobuf/timestamp.proto";
 
 option go_package = "/control";
 
@@ -49,6 +50,14 @@ message Object {
   optional double float64 = 5;
   optional bool bool = 6;
   optional bytes bytes = 7;
+}
+
+message Diff {
+  repeated Diff children = 1;
+  repeated Key key = 2;
+  Object value = 3;
+  bool delete = 4;
+  google.protobuf.Timestamp time = 5;
 }
 
 service Config {

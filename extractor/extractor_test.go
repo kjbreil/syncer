@@ -116,11 +116,13 @@ func TestNew(t *testing.T) {
 	moulds = head.Entries()
 
 	fmt.Println(moulds)
+	ts.Slice[0] = 3
+
 	head = ext.Diff(ts)
 	moulds = head.Entries()
 
 	fmt.Println(moulds)
-	// 	var moulds []Differences
+	// 	var moulds []Diff
 	// 	moulds = ext.Diff(ts)
 	// 	fmt.Println(len(moulds))
 	// 	// ts.Slice = append(ts.Slice, sd{

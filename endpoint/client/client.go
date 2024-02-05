@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kjbreil/syncer/control"
+	"github.com/kjbreil/syncer/extractor"
 	"github.com/kjbreil/syncer/injector"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -16,7 +17,7 @@ import (
 
 var (
 	ErrClientNotAvailable = fmt.Errorf("could not dial Client")
-	ErrClientInjectorErr  = fmt.Errorf("client could not create injector")
+	ErrClientInjector     = fmt.Errorf("client could not create injector")
 )
 
 type Client struct {
@@ -24,10 +25,11 @@ type Client struct {
 	conn *grpc.ClientConn
 	peer net.TCPAddr
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	inj    *injector.Injector
-	errors chan error
+	ctx       context.Context
+	cancel    context.CancelFunc
+	injector  *injector.Injector
+	extractor *extractor.Extractor
+	errors    chan error
 }
 
 func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, errs chan error) (*Client, error) {
@@ -80,9 +82,10 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientNotAvailable, err))
 	}
 
-	c.inj, err = injector.New(data)
+	c.extractor = extractor.New(data)
+	c.injector, err = injector.New(data)
 	if err != nil {
-		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientInjectorErr, err))
+		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientInjector, err))
 	}
 
 	return c, nil
@@ -133,7 +136,7 @@ func (c *Client) processUpdate(update control.Config_UpdateClient) {
 			c.cancel()
 			return
 		}
-		err = c.inj.Add(cfg)
+		err = c.injector.Add(cfg)
 		if err != nil {
 			c.errors <- err
 		}

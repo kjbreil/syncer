@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/extractor"
+	"github.com/kjbreil/syncer/injector"
 	"google.golang.org/grpc"
 	"net"
 	"sync"
@@ -15,6 +16,7 @@ type Server struct {
 	grpcServer *grpc.Server
 	errors     chan error
 	extractor  *extractor.Extractor
+	injector   *injector.Injector
 	data       any
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -22,8 +24,9 @@ type Server struct {
 }
 
 var (
-	ErrServerExited = fmt.Errorf("server exited")
-	ErrServerListen = fmt.Errorf("server could not start listening")
+	ErrServerExited   = fmt.Errorf("server exited")
+	ErrServerListen   = fmt.Errorf("server could not start listening")
+	ErrServerInjector = fmt.Errorf("server could not create injector")
 )
 
 func New(ctx context.Context, wg *sync.WaitGroup, data any, port int, errors chan error) (*Server, error) {
@@ -43,6 +46,11 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, port int, errors cha
 		wg:         wg,
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
+
+	s.injector, err = injector.New(data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrServerInjector, err)
+	}
 
 	control.RegisterConfigServer(s.grpcServer, s)
 	go func() {

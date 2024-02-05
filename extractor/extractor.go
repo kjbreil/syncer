@@ -7,14 +7,8 @@ import (
 )
 
 type Extractor struct {
-	data any
-}
-
-type Differences struct {
-	children []*Differences
-	key      []*control.Key
-	value    *control.Object
-	delete   bool
+	data    any
+	history []*control.Diff
 }
 
 func New(data any) *Extractor {
@@ -27,7 +21,8 @@ func New(data any) *Extractor {
 	dataStruct := reflect.New(t)
 	aStruct := dataStruct.Interface()
 	return &Extractor{
-		data: aStruct,
+		data:    aStruct,
+		history: make([]*control.Diff, 0, 2),
 	}
 }
 
@@ -47,32 +42,7 @@ func (ext *Extractor) Reset() {
 	ext.data = aStruct
 }
 
-func (d *Differences) Entries() []*control.Entry {
-	return d.entries()
-}
-func (d *Differences) entries() []*control.Entry {
-	var moulds []*control.Entry
-	for _, c := range d.children {
-		if len(c.children) > 0 {
-			moulds = append(moulds, c.entries()...)
-		} else {
-			if c.delete {
-				moulds = append(moulds, &control.Entry{
-					Key:    c.key,
-					Action: control.Entry_REMOVE,
-				})
-			} else {
-				moulds = append(moulds, &control.Entry{
-					Key:   c.key,
-					Value: c.value,
-				})
-			}
-		}
-	}
-	return moulds
-}
-
-func (ext *Extractor) Diff(data any) *Differences {
+func (ext *Extractor) Diff(data any) *control.Diff {
 	newValue := reflect.ValueOf(data)
 	oldValue := reflect.ValueOf(ext.data)
 
@@ -92,21 +62,45 @@ func (ext *Extractor) Diff(data any) *Differences {
 	}
 
 	headName := oldType.Name()
-	head := &Differences{
-		key: []*control.Key{
-			{
-				Key: headName,
-			},
+	head := control.NewDiff([]*control.Key{
+		{
+			Key: headName,
 		},
-		value: nil,
-	}
+	},
+	)
 
 	extractLevel(head, newValue, oldValue)
+
+	head.Timestamp()
+
+	ext.addHistory(head)
 
 	return head
 }
 
-func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.Value) {
+func (ext *Extractor) addHistory(head *control.Diff) {
+	// if length of history equal to capacity drop first item and move everything down one
+	// if len(ext.history) == cap(ext.history) {
+	//     ext.history = ext.history[1:]
+	// }
+	// ext.history = append(ext.history, head)
+
+	if len(head.Children) == 0 {
+		return
+	}
+	fmt.Println(len(ext.history), cap(ext.history))
+	if len(ext.history) == cap(ext.history) {
+		for i := 0; i < len(ext.history)-1; i++ {
+			ext.history[i] = ext.history[i+1]
+		}
+		ext.history[len(ext.history)-1] = head
+	} else {
+		ext.history = append(ext.history, head)
+	}
+
+}
+
+func extractLevel(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value) {
 	newType := newValue.Type()
 
 	zv := reflect.Value{}
@@ -125,11 +119,10 @@ func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.
 		newValueFieldKind := newValue.Field(i).Kind()
 
 		key := oldType.Field(i).Name
-		child := &Differences{
-			key: append(parent.key, &control.Key{
-				Key: key,
-			}),
-		}
+		child := control.NewDiff(append(parent.Key, &control.Key{
+			Key: key,
+		}),
+		)
 		hasChildren := false
 
 		switch newValueFieldKind {
@@ -141,16 +134,16 @@ func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.
 			extractLevelSlice(parent, newValue, oldValue, i, key, child)
 		case reflect.Struct:
 			extractLevel(child, newValue.Field(i), oldValue.Field(i))
-			if child.children != nil {
-				parent.children = append(parent.children, child)
+			if child.Children != nil {
+				parent.Children = append(parent.Children, child)
 			}
 			extractChildren(parent, child, newValue.Field(i), oldValue.Field(i), &hasChildren)
 		default:
 			if !equal(newValue.Field(i), oldValue.Field(i)) {
-				child.value = &control.Object{}
+				child.Value = &control.Object{}
 				setValue(newValue.Field(i), child)
 
-				parent.children = append(parent.children, child)
+				parent.Children = append(parent.Children, child)
 				if oldValue.Field(i).CanSet() {
 					oldValue.Field(i).Set(newValue.Field(i))
 				}
@@ -159,7 +152,7 @@ func extractLevel(parent *Differences, newValue reflect.Value, oldValue reflect.
 	}
 }
 
-func extractLevelSlice(parent *Differences, newValue reflect.Value, oldValue reflect.Value, i int, key string, child *Differences) {
+func extractLevelSlice(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, i int, key string, child *control.Diff) {
 	newFieldValue, oldFieldValue := newValue.Field(i), oldValue.Field(i)
 	shortest := min(newFieldValue.Len(), oldFieldValue.Len())
 	var hasChildren bool
@@ -183,11 +176,13 @@ func extractLevelSlice(parent *Differences, newValue reflect.Value, oldValue ref
 	if newFieldValue.Len() > oldFieldValue.Len() {
 		for ii := shortest; ii < newFieldValue.Len(); ii++ {
 			// create a dataStruct of the type in the slice to append to the oldValue slice
-			newIndexValue, oldIndexValue := newFieldValue.Index(ii), oldFieldValue.Index(ii)
+			newIndexValue := newFieldValue.Index(ii)
 
 			dataStruct := reflect.New(newIndexValue.Type()).Elem()
 			// append that value to the oldValue slice
 			oldFieldValue.Set(reflect.Append(oldFieldValue, dataStruct))
+
+			oldIndexValue := oldFieldValue.Index(ii)
 			// now extract
 			if newIndexValue.Type().Kind() == reflect.Ptr {
 				extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
@@ -208,7 +203,7 @@ func extractLevelSlice(parent *Differences, newValue reflect.Value, oldValue ref
 	reflect.Copy(oldFieldValue, newFieldValue)
 }
 
-func extractLevelMap(parent *Differences, newValue reflect.Value, oldValue reflect.Value, i int, oldType reflect.Type, child *Differences, key string) {
+func extractLevelMap(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, i int, oldType reflect.Type, child *control.Diff, key string) {
 	// Make the map for the oldValue if it doesn't exist
 	if oldValue.Field(i).Len() == 0 {
 		keyType := oldType.Field(i).Type.Key()
@@ -251,11 +246,11 @@ func extractLevelMap(parent *Differences, newValue reflect.Value, oldValue refle
 	}
 }
 
-func extractLevelPointer(parent *Differences, newValue reflect.Value, oldValue reflect.Value, i int, child *Differences) {
+func extractLevelPointer(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, i int, child *control.Diff) {
 	if newValue.Field(i).IsNil() {
 		if !oldValue.Field(i).IsNil() {
-			child.delete = true
-			parent.children = append(parent.children, child)
+			child.Delete = true
+			parent.Children = append(parent.Children, child)
 			if oldValue.CanSet() {
 				oldValue.Set(newValue)
 			}
@@ -269,23 +264,24 @@ func extractLevelPointer(parent *Differences, newValue reflect.Value, oldValue r
 	extractChildren(parent, child, newValue.Field(i).Elem(), oldValue.Field(i).Elem(), &hasChildren)
 }
 
-func setValue(va reflect.Value, child *Differences) {
+func setValue(va reflect.Value, child *control.Diff) {
+	child.Value = &control.Object{}
 	switch va.Kind() {
 	case reflect.Invalid:
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		value := va.Int()
-		child.value.Int64 = &value
+		child.Value.Int64 = &value
 	case reflect.Bool:
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		value := va.Uint()
-		child.value.Uint64 = &value
+		child.Value.Uint64 = &value
 	case reflect.Uintptr:
 	case reflect.Float32:
 		value := float32(va.Float())
-		child.value.Float32 = &value
+		child.Value.Float32 = &value
 	case reflect.Float64:
 		value := va.Float()
-		child.value.Float64 = &value
+		child.Value.Float64 = &value
 	case reflect.Complex64, reflect.Complex128:
 	case reflect.Chan:
 	case reflect.Func:
@@ -297,13 +293,13 @@ func setValue(va reflect.Value, child *Differences) {
 		panic("cannot make string of slice, should explode out")
 	case reflect.String:
 		value := va.String()
-		child.value.String_ = &value
+		child.Value.String_ = &value
 	case reflect.Struct:
 	case reflect.UnsafePointer:
 	}
 }
 
-func extractNonStruct(parent *Differences, newValue reflect.Value, oldValue reflect.Value, index interface{}, key string) {
+func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, index interface{}, key string) {
 	if !equal(newValue, oldValue) {
 		var indexObject control.Object
 		switch index.(type) {
@@ -322,16 +318,15 @@ func extractNonStruct(parent *Differences, newValue reflect.Value, oldValue refl
 		default:
 			panic("extractNonStruct: unsupported type")
 		}
-		child := &Differences{
-			key: append(parent.key, &control.Key{
-				Key:   key,
-				Index: &indexObject,
-			}),
-			value: &control.Object{},
-		}
+
+		child := control.NewDiff(append(parent.Key, &control.Key{
+			Key:   key,
+			Index: &indexObject,
+		}),
+		)
 		setValue(newValue, child)
 
-		parent.children = append(parent.children, child)
+		parent.Children = append(parent.Children, child)
 		if oldValue.CanSet() {
 			oldValue.Set(newValue)
 		}
@@ -339,21 +334,19 @@ func extractNonStruct(parent *Differences, newValue reflect.Value, oldValue refl
 
 }
 
-func deleteNonStruct[i int | string](parent *Differences, index i, key string) {
-	child := &Differences{
-		key: append(parent.key, &control.Key{
-			Key:   key,
-			Index: control.NewObject(index),
-		}),
-		delete: true,
-	}
-	parent.children = append(parent.children, child)
+func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) {
+	child := control.NewDelDiff(append(parent.Key, &control.Key{
+		Key:   key,
+		Index: control.NewObject(index),
+	}),
+	)
+	parent.Children = append(parent.Children, child)
 }
 
-func extractChildren(parent *Differences, child *Differences, newValue reflect.Value, oldValue reflect.Value, hasChildren *bool) {
+func extractChildren(parent *control.Diff, child *control.Diff, newValue reflect.Value, oldValue reflect.Value, hasChildren *bool) {
 	extractLevel(child, newValue, oldValue)
-	if !*hasChildren && child.children != nil {
-		parent.children = append(parent.children, child)
+	if !*hasChildren && child.Children != nil {
+		parent.Children = append(parent.Children, child)
 		*hasChildren = true
 	}
 }
