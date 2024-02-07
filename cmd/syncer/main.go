@@ -1,12 +1,13 @@
 package main
 
 import (
-	"github.com/kjbreil/syncer/endpoint"
-	"github.com/kjbreil/syncer/endpoint/settings"
-	"github.com/rivo/tview"
 	"log/slog"
 	"net"
 	"time"
+
+	"github.com/kjbreil/syncer/endpoint"
+	"github.com/kjbreil/syncer/endpoint/settings"
+	"github.com/rivo/tview"
 )
 
 type state struct {
@@ -114,7 +115,6 @@ func (s *state) update() {
 	for _, f := range s.updateFunc {
 		f()
 	}
-
 }
 
 // func (s *state) makeLogData() *tview.TextView {

@@ -106,20 +106,30 @@ func TestNew(t *testing.T) {
 
 	ext := New(ts)
 
-	head, _ := ext.Diff(ts)
+	head, err := ext.Diff(&ts)
+	if err != nil {
+		t.Fatal(err)
+	}
 	molds := head.Entries()
 
 	fmt.Println(molds)
 
 	// ts.Slice[0] = 2
 	// delete(ts.Map, "test2")
-	head, _ = ext.Diff(ts)
+	head, err = ext.Diff(&ts)
+	if err != nil {
+		t.Fatal(err)
+	}
 	molds = head.Entries()
 
 	fmt.Println(molds)
 	// ts.Slice[0] = 3
 
-	head, _ = ext.Diff(ts)
+	head, err = ext.Diff(&ts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	molds = head.Entries()
 
 	fmt.Println(molds)

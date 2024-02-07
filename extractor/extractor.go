@@ -138,14 +138,13 @@ func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error 
 			continue
 		}
 
-		newValueFieldKind := newValue.Field(i).Kind()
-
 		key := oldType.Field(i).Name
 		child := control.NewDiff(append(parent.Key, &control.Key{
 			Key: key,
 		}),
 		)
 		hasChildren := false
+		newValueFieldKind := newValue.Field(i).Kind()
 
 		switch newValueFieldKind {
 		case reflect.Pointer:
@@ -362,19 +361,17 @@ func setValue(va reflect.Value, child *control.Diff) error {
 func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, index any, key string) error {
 	if !equal(newValue, oldValue) {
 		var indexObject control.Object
-		switch index.(type) {
+		switch v := index.(type) {
 		case string:
-			s := index.(string)
-			indexObject.String_ = &s
+			indexObject.String_ = &v
 		case int:
-			i := int64(index.(int))
+			i := int64(v)
 			indexObject.Int64 = &i
 		case int32:
-			i := int64(index.(int32))
+			i := int64(v)
 			indexObject.Int64 = &i
 		case int64:
-			i := index.(int64)
-			indexObject.Int64 = &i
+			indexObject.Int64 = &v
 		default:
 			return fmt.Errorf("extractNonStruct: %w", ErrUnsupportedType)
 		}
@@ -406,7 +403,7 @@ func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) 
 	parent.Children = append(parent.Children, child)
 }
 
-func extractChildren(parent *control.Diff, child *control.Diff, newValue reflect.Value, oldValue reflect.Value, hasChildren *bool) error {
+func extractChildren(parent *control.Diff, child *control.Diff, newValue, oldValue reflect.Value, hasChildren *bool) error {
 	err := extractLevel(child, newValue, oldValue)
 	if err != nil {
 		return fmt.Errorf("extractChildren: %w", err)
@@ -418,7 +415,7 @@ func extractChildren(parent *control.Diff, child *control.Diff, newValue reflect
 	return nil
 }
 
-func equal(n reflect.Value, o reflect.Value) bool {
+func equal(n, o reflect.Value) bool {
 	if n.Kind() != o.Kind() {
 		return false
 	}
@@ -463,5 +460,4 @@ func makeString(x reflect.Value) string {
 	default:
 		panic("makeString: unsupported type " + x.Type().String())
 	}
-	return ""
 }

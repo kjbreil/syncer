@@ -5,9 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/kjbreil/syncer/endpoint/client"
-	"github.com/kjbreil/syncer/endpoint/server"
-	settings2 "github.com/kjbreil/syncer/endpoint/settings"
 	"log/slog"
 	"math/big"
 	"net"
@@ -15,6 +12,10 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/kjbreil/syncer/endpoint/client"
+	"github.com/kjbreil/syncer/endpoint/server"
+	settings2 "github.com/kjbreil/syncer/endpoint/settings"
 )
 
 var (
@@ -153,7 +154,6 @@ func (e *Endpoint) run(onlyClient bool) {
 							// process IP address
 						}
 					}
-
 				}
 			}
 		}

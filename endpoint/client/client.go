@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"sync"
+	"time"
+
 	"github.com/kjbreil/syncer/combined"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/endpoint/settings"
@@ -12,11 +18,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-	"io"
-	"log/slog"
-	"net"
-	"sync"
-	"time"
 )
 
 var (

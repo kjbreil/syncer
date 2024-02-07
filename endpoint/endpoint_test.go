@@ -2,10 +2,11 @@ package endpoint
 
 import (
 	"fmt"
-	"github.com/kjbreil/syncer/endpoint/settings"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/kjbreil/syncer/endpoint/settings"
 )
 
 type testStruct struct {
@@ -33,7 +34,6 @@ type sd struct {
 }
 
 func TestEndpoint_Run(t *testing.T) {
-
 	peersOne := []net.TCPAddr{{
 		IP:   net.ParseIP("10.0.2.2"),
 		Port: 45014,
