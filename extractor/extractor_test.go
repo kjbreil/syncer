@@ -2,9 +2,10 @@ package extractor
 
 import (
 	"fmt"
-	"github.com/kjbreil/syncer/control"
 	"reflect"
 	"testing"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 type testStruct struct {
@@ -105,26 +106,26 @@ func TestNew(t *testing.T) {
 
 	ext := New(ts)
 
-	head := ext.Diff(ts)
-	moulds := head.Entries()
+	head, _ := ext.Diff(ts)
+	molds := head.Entries()
 
-	fmt.Println(moulds)
+	fmt.Println(molds)
 
 	// ts.Slice[0] = 2
 	// delete(ts.Map, "test2")
-	head = ext.Diff(ts)
-	moulds = head.Entries()
+	head, _ = ext.Diff(ts)
+	molds = head.Entries()
 
-	fmt.Println(moulds)
+	fmt.Println(molds)
 	// ts.Slice[0] = 3
 
-	head = ext.Diff(ts)
-	moulds = head.Entries()
+	head, _ = ext.Diff(ts)
+	molds = head.Entries()
 
-	fmt.Println(moulds)
-	// 	var moulds []Diff
-	// 	moulds = ext.Diff(ts)
-	// 	fmt.Println(len(moulds))
+	fmt.Println(molds)
+	// 	var molds []Diff
+	// 	molds = ext.Diff(ts)
+	// 	fmt.Println(len(molds))
 	// 	// ts.Slice = append(ts.Slice, sd{
 	// 	// 	name: "test3",
 	// 	// 	data: "test3",
@@ -137,12 +138,11 @@ func TestNew(t *testing.T) {
 	//
 	// 	ts.Sub.String = "TestSubUpdate"
 	//
-	// 	moulds = ext.Diff(ts)
-	// 	fmt.Println(len(moulds))
+	// 	molds = ext.Diff(ts)
+	// 	fmt.Println(len(molds))
 }
 
 func Test_equal(t *testing.T) {
-
 	type args struct {
 		newValue reflect.Value
 		oldValue reflect.Value
@@ -210,19 +210,19 @@ func TestExtractor_Diff(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.addFunc()
-			head := ext.Diff(ts)
-			moulds := head.Entries()
-			if len(moulds) != len(tt.want) {
-				t.Errorf("got moulds length not matching expected")
+			head, _ := ext.Diff(ts)
+			molds := head.Entries()
+			if len(molds) != len(tt.want) {
+				t.Errorf("got molds length not matching expected")
 			}
-			for i := range moulds {
-				if !reflect.DeepEqual(moulds[i], tt.want[i]) {
-					t.Fatalf("mould not match: %v != %v", moulds[i], tt.want[i])
+			for i := range molds {
+				if !reflect.DeepEqual(molds[i], tt.want[i]) {
+					t.Fatalf("mold not match: %v != %v", molds[i], tt.want[i])
 				}
 			}
-			head = ext.Diff(ts)
-			moulds = head.Entries()
-			if len(moulds) > 0 {
+			head, _ = ext.Diff(ts)
+			molds = head.Entries()
+			if len(molds) > 0 {
 				t.Fatal("changes detected when they should not have been")
 			}
 		})
@@ -250,9 +250,9 @@ func BenchmarkExtractor_Diff(b *testing.B) {
 		for ii := 0; ii < sliceEntries; ii++ {
 			ts.Slice = append(ts.Slice, ii)
 		}
-		head := ext.Diff(ts)
+		head, _ := ext.Diff(&ts)
 		_ = head.Entries()
-		head = ext.Diff(ts)
+		head, _ = ext.Diff(&ts)
 		_ = head.Entries()
 	}
 }
@@ -269,15 +269,28 @@ func BenchmarkExtractor_Diff2(b *testing.B) {
 		for ii := 0; ii < sliceEntries; ii++ {
 			ts.Slice = append(ts.Slice, ii)
 		}
-		head := ext.Diff(ts)
+		head, _ := ext.Diff(&ts)
 		_ = head.Entries()
 		ts.Slice = make([]int, 0, sliceEntries)
-		head = ext.Diff(ts)
+		head, _ = ext.Diff(&ts)
 		_ = head.Entries()
 		for ii := 0; ii < sliceEntries; ii++ {
 			ts.Slice = append(ts.Slice, ii)
 		}
-		head = ext.Diff(ts)
+		head, _ = ext.Diff(&ts)
+		_ = head.Entries()
+	}
+}
+
+func BenchmarkExtractor_Diff3(b *testing.B) {
+	ts := testStruct{
+		String: "Test",
+	}
+	ext := New(ts)
+	for i := 0; i < b.N; i++ {
+		head, _ := ext.Diff(&ts)
+		_ = head.Entries()
+		head, _ = ext.Diff(&ts)
 		_ = head.Entries()
 	}
 }

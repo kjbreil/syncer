@@ -28,6 +28,6 @@ func (c *Combined) Reset() {
 	c.extractor.Reset()
 }
 
-func (c *Combined) Diff(data any) *control.Diff {
+func (c *Combined) Diff(data any) (*control.Diff, error) {
 	return c.extractor.Diff(data)
 }

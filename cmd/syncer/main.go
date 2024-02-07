@@ -51,8 +51,9 @@ func main() {
 	}
 
 	endpointOne, err := endpoint.New(&s.endpointOneData, &settings.Settings{
-		Peers: peers,
-		Port:  port,
+		Peers:      peers,
+		Port:       port,
+		AutoUpdate: true,
 	})
 	if err != nil {
 		panic(err)

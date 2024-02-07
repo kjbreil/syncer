@@ -31,11 +31,11 @@ type Endpoint struct {
 	// peers  []net.TCPAddr
 	settings *settings2.Settings
 	localIP  []net.IP
-	server   *server.Server `extractor:"-"`
-	client   *client.Client `extractor:"-"`
-	data     any            `extractor:"-"`
-	Errors   chan error     `extractor:"-"`
-	logger   *slog.Logger   `extractor:"-"`
+	server   *server.Server    `extractor:"-"`
+	client   *client.Client    `extractor:"-"`
+	data     any               `extractor:"-"`
+	Errors   chan *slog.Record `extractor:"-"`
+	logger   *slog.Logger      `extractor:"-"`
 
 	ctx    context.Context    `extractor:"-"`
 	cancel context.CancelFunc `extractor:"-"`
@@ -59,7 +59,7 @@ func New(data any, stngs *settings2.Settings) (*Endpoint, error) {
 		ctx:      ctx,
 		cancel:   cancel,
 		wg:       &sync.WaitGroup{},
-		Errors:   make(chan error, 100),
+		Errors:   make(chan *slog.Record, 100),
 		logger:   slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
 
@@ -70,6 +70,7 @@ func (e *Endpoint) Run(onlyClient bool) {
 	if e.Running() {
 		return
 	}
+	e.ctx, e.cancel = context.WithCancel(context.Background())
 	// add two WG because there are two goroutines started in e.run
 	e.wg.Add(2)
 	go e.run(onlyClient)
@@ -107,7 +108,7 @@ func (e *Endpoint) run(onlyClient bool) {
 				e.wg.Done()
 				return
 			case err := <-e.Errors:
-				e.logger.Error(err.Error())
+				e.logger.Handler().Handle(e.ctx, *err)
 			}
 		}
 	}()

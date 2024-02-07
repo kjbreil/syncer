@@ -2,8 +2,9 @@ package extractor
 
 import (
 	"fmt"
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 type Extractor struct {
@@ -11,8 +12,17 @@ type Extractor struct {
 	history []*control.Diff
 }
 
-func New(data any) *Extractor {
+var (
+	ErrNotPointer         = fmt.Errorf("data is not a pointer")
+	ErrDataStructMisMatch = fmt.Errorf("data structs do not match")
+	ErrUnsupportedType    = fmt.Errorf("unsupported type")
+)
 
+const (
+	historySize = 100
+)
+
+func New(data any) *Extractor {
 	t := reflect.TypeOf(data)
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -22,7 +32,7 @@ func New(data any) *Extractor {
 	aStruct := dataStruct.Interface()
 	return &Extractor{
 		data:    aStruct,
-		history: make([]*control.Diff, 0, 100),
+		history: make([]*control.Diff, 0, historySize),
 	}
 }
 
@@ -42,8 +52,15 @@ func (ext *Extractor) Reset() {
 	ext.data = aStruct
 }
 
-func (ext *Extractor) Diff(data any) *control.Diff {
+func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 	newValue := reflect.ValueOf(data)
+	if newValue.Kind() != reflect.Ptr {
+		return nil, ErrNotPointer
+	}
+	if reflect.DeepEqual(ext.data, data) {
+		return &control.Diff{}, nil
+	}
+
 	oldValue := reflect.ValueOf(ext.data)
 
 	// if it's a pointer follow to the real data
@@ -69,13 +86,15 @@ func (ext *Extractor) Diff(data any) *control.Diff {
 	},
 	)
 
-	extractLevel(head, newValue, oldValue)
-
+	err := extractLevel(head, newValue, oldValue)
+	if err != nil {
+		return nil, err
+	}
 	head.Timestamp()
 
 	ext.addHistory(head)
 
-	return head
+	return head, nil
 }
 
 func (ext *Extractor) addHistory(head *control.Diff) {
@@ -96,10 +115,9 @@ func (ext *Extractor) addHistory(head *control.Diff) {
 	} else {
 		ext.history = append(ext.history, head)
 	}
-
 }
 
-func extractLevel(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value) {
+func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error {
 	newType := newValue.Type()
 
 	zv := reflect.Value{}
@@ -112,7 +130,7 @@ func extractLevel(parent *control.Diff, newValue reflect.Value, oldValue reflect
 	numFields := newValue.NumField()
 	for i := 0; i < numFields; i++ {
 		if newType.Field(i).Name != oldType.Field(i).Name {
-			panic("this shouldn't happen")
+			return fmt.Errorf("%w: %s != %s", ErrDataStructMisMatch, newType.Field(i).Name, oldType.Field(i).Name)
 		}
 
 		etag := newType.Field(i).Tag.Get("extractor")
@@ -133,20 +151,34 @@ func extractLevel(parent *control.Diff, newValue reflect.Value, oldValue reflect
 		case reflect.Pointer:
 			extractLevelPointer(parent, newValue, oldValue, i, child)
 		case reflect.Map:
-			extractLevelMap(parent, newValue, oldValue, i, oldType, child, key)
+			err := extractLevelMap(parent, newValue, oldValue, i, oldType, child, key)
+			if err != nil {
+				return fmt.Errorf("extractLevel: %w", err)
+			}
 		case reflect.Slice, reflect.Array:
-			extractLevelSlice(parent, newValue, oldValue, i, key, child)
+			err := extractLevelSlice(parent, newValue, oldValue, i, key, child)
+			if err != nil {
+				return fmt.Errorf("extractLevel: %w", err)
+			}
 		case reflect.Struct:
-			extractLevel(child, newValue.Field(i), oldValue.Field(i))
+			err := extractLevel(child, newValue.Field(i), oldValue.Field(i))
+			if err != nil {
+				return fmt.Errorf("extractLevel: %w", err)
+			}
 			if child.Children != nil {
 				parent.Children = append(parent.Children, child)
 			}
-			extractChildren(parent, child, newValue.Field(i), oldValue.Field(i), &hasChildren)
+			err = extractChildren(parent, child, newValue.Field(i), oldValue.Field(i), &hasChildren)
+			if err != nil {
+				return fmt.Errorf("extractLevel: %w", err)
+			}
 		default:
 			if !equal(newValue.Field(i), oldValue.Field(i)) {
 				child.Value = &control.Object{}
-				setValue(newValue.Field(i), child)
-
+				err := setValue(newValue.Field(i), child)
+				if err != nil {
+					return fmt.Errorf("extractLevel: %w", err)
+				}
 				parent.Children = append(parent.Children, child)
 				if oldValue.Field(i).CanSet() {
 					oldValue.Field(i).Set(newValue.Field(i))
@@ -154,9 +186,10 @@ func extractLevel(parent *control.Diff, newValue reflect.Value, oldValue reflect
 			}
 		}
 	}
+	return nil
 }
 
-func extractLevelSlice(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, i int, key string, child *control.Diff) {
+func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i int, key string, child *control.Diff) error {
 	newFieldValue, oldFieldValue := newValue.Field(i), oldValue.Field(i)
 	shortest := min(newFieldValue.Len(), oldFieldValue.Len())
 	var hasChildren bool
@@ -167,13 +200,22 @@ func extractLevelSlice(parent *control.Diff, newValue reflect.Value, oldValue re
 			continue
 		}
 		indexNewValue := newIndexValue
-		if indexNewValue.Type().Kind() == reflect.Ptr {
-			extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
-		} else if indexNewValue.Type().Kind() != reflect.Struct {
-			extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
-		} else {
-			var hasChildren bool
-			extractChildren(parent, child, newIndexValue, oldIndexValue, &hasChildren)
+		switch {
+		case indexNewValue.Type().Kind() == reflect.Ptr:
+			err := extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
+			if err != nil {
+				return fmt.Errorf("extractLevelSlice: %w", err)
+			}
+		case indexNewValue.Type().Kind() != reflect.Struct:
+			err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
+			if err != nil {
+				return fmt.Errorf("extractLevelSlice: %w", err)
+			}
+		default:
+			err := extractChildren(parent, child, newIndexValue, oldIndexValue, &hasChildren)
+			if err != nil {
+				return fmt.Errorf("extractLevelSlice: %w", err)
+			}
 		}
 	}
 	// new value has more data than the olddata
@@ -189,11 +231,20 @@ func extractLevelSlice(parent *control.Diff, newValue reflect.Value, oldValue re
 			oldIndexValue := oldFieldValue.Index(ii)
 			// now extract
 			if newIndexValue.Type().Kind() == reflect.Ptr {
-				extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
+				err := extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
+				if err != nil {
+					return fmt.Errorf("extractLevelSlice: %w", err)
+				}
 			} else if newIndexValue.Type().Kind() != reflect.Struct {
-				extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
+				err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
+				if err != nil {
+					return fmt.Errorf("extractLevelSlice: %w", err)
+				}
 			} else {
-				extractChildren(parent, child, newIndexValue, oldIndexValue, &hasChildren)
+				err := extractChildren(parent, child, newIndexValue, oldIndexValue, &hasChildren)
+				if err != nil {
+					return fmt.Errorf("extractLevelSlice: %w", err)
+				}
 			}
 		}
 	}
@@ -205,9 +256,10 @@ func extractLevelSlice(parent *control.Diff, newValue reflect.Value, oldValue re
 	}
 
 	reflect.Copy(oldFieldValue, newFieldValue)
+	return nil
 }
 
-func extractLevelMap(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, i int, oldType reflect.Type, child *control.Diff, key string) {
+func extractLevelMap(parent *control.Diff, newValue, oldValue reflect.Value, i int, oldType reflect.Type, child *control.Diff, key string) error {
 	// Make the map for the oldValue if it doesn't exist
 	if oldValue.Field(i).Len() == 0 {
 		keyType := oldType.Field(i).Type.Key()
@@ -229,11 +281,20 @@ func extractLevelMap(parent *control.Diff, newValue reflect.Value, oldValue refl
 		var hasChildren bool
 		switch newValue.Field(i).MapIndex(k).Type().Kind() {
 		case reflect.Ptr:
-			extractChildren(parent, child, newValue.Field(i).MapIndex(k).Elem(), oldValue.Field(i).MapIndex(k).Elem(), &hasChildren)
+			err := extractChildren(parent, child, newValue.Field(i).MapIndex(k).Elem(), oldValue.Field(i).MapIndex(k).Elem(), &hasChildren)
+			if err != nil {
+				return fmt.Errorf("extractLevelMap: %w", err)
+			}
 		case reflect.Struct:
-			extractNonStruct(parent, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), makeString(k), key)
+			err := extractNonStruct(parent, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), makeString(k), key)
+			if err != nil {
+				return fmt.Errorf("extractLevelMap: %w", err)
+			}
 		default:
-			extractChildren(parent, child, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), &hasChildren)
+			err := extractChildren(parent, child, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), &hasChildren)
+			if err != nil {
+				return fmt.Errorf("extractLevelMap: %w", err)
+			}
 		}
 
 		// the address cannot be set so setting it manually
@@ -241,16 +302,16 @@ func extractLevelMap(parent *control.Diff, newValue reflect.Value, oldValue refl
 	}
 	// find deletes
 	for _, k := range oldValue.Field(i).MapKeys() {
-
 		zeroValue := reflect.Value{}
 		if newValue.Field(i).MapIndex(k) == zeroValue {
 			deleteNonStruct(parent, makeString(k), key)
 			oldValue.Field(i).SetMapIndex(k, reflect.Value{})
 		}
 	}
+	return nil
 }
 
-func extractLevelPointer(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, i int, child *control.Diff) {
+func extractLevelPointer(parent *control.Diff, newValue, oldValue reflect.Value, i int, child *control.Diff) {
 	if newValue.Field(i).IsNil() {
 		if !oldValue.Field(i).IsNil() {
 			child.Delete = true
@@ -265,10 +326,13 @@ func extractLevelPointer(parent *control.Diff, newValue reflect.Value, oldValue 
 		oldValue.Field(i).Set(reflect.New(newValue.Field(i).Elem().Type()))
 	}
 	var hasChildren bool
-	extractChildren(parent, child, newValue.Field(i).Elem(), oldValue.Field(i).Elem(), &hasChildren)
+	err := extractChildren(parent, child, newValue.Field(i).Elem(), oldValue.Field(i).Elem(), &hasChildren)
+	if err != nil {
+		return
+	}
 }
 
-func setValue(va reflect.Value, child *control.Diff) {
+func setValue(va reflect.Value, child *control.Diff) error {
 	child.Value = &control.Object{}
 	switch va.Kind() {
 	case reflect.Invalid:
@@ -286,24 +350,16 @@ func setValue(va reflect.Value, child *control.Diff) {
 	case reflect.Float64:
 		value := va.Float()
 		child.Value.Float64 = &value
-	case reflect.Complex64, reflect.Complex128:
-	case reflect.Chan:
-	case reflect.Func:
-	case reflect.Interface:
-	case reflect.Map:
-		panic("cannot make string of slice, should explode out")
-	case reflect.Pointer:
-	case reflect.Slice, reflect.Array:
-		panic("cannot make string of slice, should explode out")
 	case reflect.String:
 		value := va.String()
 		child.Value.String_ = &value
-	case reflect.Struct:
-	case reflect.UnsafePointer:
+	default:
+		return fmt.Errorf("cannot setValue of type %s", va.Type().String())
 	}
+	return nil
 }
 
-func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, index interface{}, key string) {
+func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, index any, key string) error {
 	if !equal(newValue, oldValue) {
 		var indexObject control.Object
 		switch index.(type) {
@@ -320,7 +376,7 @@ func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue ref
 			i := index.(int64)
 			indexObject.Int64 = &i
 		default:
-			panic("extractNonStruct: unsupported type")
+			return fmt.Errorf("extractNonStruct: %w", ErrUnsupportedType)
 		}
 
 		child := control.NewDiff(append(parent.Key, &control.Key{
@@ -328,14 +384,17 @@ func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue ref
 			Index: &indexObject,
 		}),
 		)
-		setValue(newValue, child)
-
+		err := setValue(newValue, child)
+		if err != nil {
+			return fmt.Errorf("extractNonStruct: %w", err)
+		}
 		parent.Children = append(parent.Children, child)
 		if oldValue.CanSet() {
 			oldValue.Set(newValue)
 		}
 	}
 
+	return nil
 }
 
 func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) {
@@ -347,16 +406,19 @@ func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) 
 	parent.Children = append(parent.Children, child)
 }
 
-func extractChildren(parent *control.Diff, child *control.Diff, newValue reflect.Value, oldValue reflect.Value, hasChildren *bool) {
-	extractLevel(child, newValue, oldValue)
+func extractChildren(parent *control.Diff, child *control.Diff, newValue reflect.Value, oldValue reflect.Value, hasChildren *bool) error {
+	err := extractLevel(child, newValue, oldValue)
+	if err != nil {
+		return fmt.Errorf("extractChildren: %w", err)
+	}
 	if !*hasChildren && child.Children != nil {
 		parent.Children = append(parent.Children, child)
 		*hasChildren = true
 	}
+	return nil
 }
 
 func equal(n reflect.Value, o reflect.Value) bool {
-
 	if n.Kind() != o.Kind() {
 		return false
 	}
@@ -394,19 +456,12 @@ func makeString(x reflect.Value) string {
 		return fmt.Sprintf("%f", x.Float())
 	case reflect.Complex64, reflect.Complex128:
 		return fmt.Sprintf("%f", x.Complex())
-	case reflect.Chan:
-	case reflect.Func:
-	case reflect.Interface:
-	case reflect.Map:
-		panic("cannot make string of slice, should explode out")
 	case reflect.Pointer:
 		return makeString(x.Elem())
-	case reflect.Slice, reflect.Array:
-		panic("cannot make string of slice, should explode out")
 	case reflect.String:
 		return x.String()
-	case reflect.Struct:
-	case reflect.UnsafePointer:
+	default:
+		panic("makeString: unsupported type " + x.Type().String())
 	}
 	return ""
 }

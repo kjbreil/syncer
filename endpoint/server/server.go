@@ -2,20 +2,27 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/kjbreil/syncer/combined"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/endpoint/settings"
+	slogchannel "github.com/samber/slog-channel"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"io"
+	"log/slog"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
-	control.UnimplementedConfigServer
+	control.UnsafeConfigServer
 	grpcServer *grpc.Server
-	errors     chan error
 
+	logger   *slog.Logger
 	combined *combined.Combined
 
 	// extractor *extractor.Extractor
@@ -34,7 +41,7 @@ var (
 	ErrServerInjector = fmt.Errorf("server could not create injector")
 )
 
-func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.Settings, errors chan error) (*Server, error) {
+func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.Settings, errors chan *slog.Record) (*Server, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", settings.Port))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrServerListen, err)
@@ -43,7 +50,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.S
 
 	var s = &Server{
 		grpcServer: grpc.NewServer(opts...),
-		errors:     errors,
+		logger:     slog.New(slogchannel.Option{Level: slog.LevelDebug, Channel: errors}.NewChannelHandler()),
 		// extractor:  ext,
 		data: data,
 		wg:   wg,
@@ -60,9 +67,10 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.S
 	go func() {
 		err := s.grpcServer.Serve(lis)
 		if err != nil {
-			s.errors <- fmt.Errorf("%w: %w", ErrServerExited, err)
+			s.logger.Error(fmt.Errorf("%w: %w", ErrServerExited, err).Error())
 		}
-		s.errors <- ErrServerExited
+		s.logger.Error(ErrServerExited.Error())
+
 		s.cancel()
 	}()
 
@@ -81,25 +89,6 @@ func (s *Server) Running() bool {
 	return s.ctx.Err() == nil
 }
 
-func (s *Server) Pull(req *control.Request, srv control.Config_PullServer) error {
-	switch req.GetType() {
-	case control.Request_INIT:
-		s.combined.Reset()
-		fallthrough
-	case control.Request_CHANGES:
-		head := s.combined.Diff(s.data)
-		entries := head.Entries()
-		for _, e := range entries {
-			err := srv.Send(e)
-			if err != nil {
-				s.errors <- err
-			}
-		}
-	}
-
-	return nil
-}
-
 func (s *Server) Control(_ context.Context, message *control.Message) (*control.Response, error) {
 	switch message.Action {
 	case control.Message_PING:
@@ -110,4 +99,109 @@ func (s *Server) Control(_ context.Context, message *control.Message) (*control.
 	default:
 		return &control.Response{}, nil
 	}
+}
+
+func (s *Server) Pull(req *control.Request, srv control.Config_PullServer) error {
+	switch req.GetType() {
+	case control.Request_INIT:
+		s.combined.Reset()
+		fallthrough
+	case control.Request_CHANGES:
+		head, _ := s.combined.Diff(s.data)
+		entries := head.Entries()
+		for _, e := range entries {
+			err := srv.Send(e)
+			if err != nil {
+				s.logger.Error(err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *Server) Push(server control.Config_PushServer) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (s *Server) PushPull(server control.Config_PushPullServer) error {
+
+	ctx, cancel := context.WithCancel(s.ctx)
+
+	var wg sync.WaitGroup
+	mu := &sync.Mutex{}
+	checkInterval := time.Millisecond * 100
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+		for {
+			select {
+			case <-time.After(checkInterval):
+				mu.Lock()
+				head, err := s.combined.Diff(s.data)
+				if err != nil {
+					s.logger.Error(err.Error())
+					mu.Unlock()
+				}
+				entries := head.Entries()
+				for _, e := range entries {
+					err := server.Send(e)
+					if err != nil {
+						s.logger.Error(err.Error())
+						mu.Unlock()
+						return
+					}
+				}
+				mu.Unlock()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+		for {
+			e, err := server.Recv()
+			if errors.Is(err, io.EOF) {
+				return
+			}
+			if stat, ok := status.FromError(err); ok {
+				switch stat.Code() {
+				case codes.OK:
+				case codes.Canceled:
+					return
+				default:
+					s.logger.Error(fmt.Sprintf("Server.PushPull() GRPC error: %s", stat.String()))
+					return
+				}
+			}
+
+			if err != nil {
+				s.logger.Error(fmt.Errorf("Server.PushPull(): %w", err).Error())
+				return
+			}
+			mu.Lock()
+			err = s.combined.Add(e)
+			_, _ = s.combined.Diff(s.data)
+			mu.Unlock()
+			if err != nil {
+				if err != nil {
+					s.logger.Error(fmt.Errorf("Server.PushPull(): %w", err).Error())
+				}
+				return
+			}
+		}
+	}()
+
+	s.logger.Info("Server.PushPull() started")
+	wg.Wait()
+	s.logger.Info("Server.PushPull() stopped")
+
+	return nil
 }
