@@ -4,6 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"sync"
+	"time"
+
 	"github.com/kjbreil/syncer/combined"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/endpoint/settings"
@@ -11,11 +17,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
-	"log/slog"
-	"net"
-	"sync"
-	"time"
 )
 
 type Server struct {
@@ -36,9 +37,9 @@ type Server struct {
 }
 
 var (
-	ErrServerExited   = fmt.Errorf("server exited")
-	ErrServerListen   = fmt.Errorf("server could not start listening")
-	ErrServerInjector = fmt.Errorf("server could not create injector")
+	ErrServerExited   = errors.New("server exited")
+	ErrServerListen   = errors.New("server could not start listening")
+	ErrServerInjector = errors.New("server could not create injector")
 )
 
 func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.Settings, errors chan *slog.Record) (*Server, error) {
@@ -79,7 +80,6 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.S
 		<-s.ctx.Done()
 		s.grpcServer.Stop()
 		wg.Done()
-		return
 	}()
 
 	return s, nil
@@ -90,7 +90,7 @@ func (s *Server) Running() bool {
 }
 
 func (s *Server) Control(_ context.Context, message *control.Message) (*control.Response, error) {
-	switch message.Action {
+	switch message.GetAction() {
 	case control.Message_PING:
 		return &control.Response{}, nil
 	case control.Message_SHUTDOWN:
@@ -126,12 +126,11 @@ func (s *Server) Push(server control.Config_PushServer) error {
 }
 
 func (s *Server) PushPull(server control.Config_PushPullServer) error {
-
 	ctx, cancel := context.WithCancel(s.ctx)
 
 	var wg sync.WaitGroup
 	mu := &sync.Mutex{}
-	checkInterval := time.Millisecond * 100
+	checkInterval := time.Second
 
 	wg.Add(1)
 	go func() {
@@ -148,7 +147,7 @@ func (s *Server) PushPull(server control.Config_PushPullServer) error {
 				}
 				entries := head.Entries()
 				for _, e := range entries {
-					err := server.Send(e)
+					err = server.Send(e)
 					if err != nil {
 						s.logger.Error(err.Error())
 						mu.Unlock()
@@ -177,7 +176,7 @@ func (s *Server) PushPull(server control.Config_PushPullServer) error {
 				case codes.Canceled:
 					return
 				default:
-					s.logger.Error(fmt.Sprintf("Server.PushPull() GRPC error: %s", stat.String()))
+					s.logger.Error("Server.PushPull() GRPC error: %s" + stat.String())
 					return
 				}
 			}
@@ -191,9 +190,7 @@ func (s *Server) PushPull(server control.Config_PushPullServer) error {
 			_, _ = s.combined.Diff(s.data)
 			mu.Unlock()
 			if err != nil {
-				if err != nil {
-					s.logger.Error(fmt.Errorf("Server.PushPull(): %w", err).Error())
-				}
+				s.logger.Error(fmt.Errorf("Server.PushPull(): %w", err).Error())
 				return
 			}
 		}

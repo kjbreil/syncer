@@ -121,7 +121,7 @@ func (c *Client) Running() bool {
 	return c.ctx.Err() == nil
 }
 
-// Init requests to init data from the server
+// Init requests to init data from the server.
 func (c *Client) Init() {
 	update, err := c.c.Pull(c.ctx, &control.Request{Type: control.Request_INIT})
 	if err != nil {
@@ -131,7 +131,7 @@ func (c *Client) Init() {
 	c.processUpdate(update)
 }
 
-// ShutdownRemoteServer requests to shut down the server
+// ShutdownRemoteServer requests to shut down the server.
 func (c *Client) ShutdownRemoteServer() {
 	_, err := c.c.Control(c.ctx, &control.Message{Action: control.Message_SHUTDOWN})
 	if err != nil {
@@ -224,7 +224,7 @@ func (c *Client) PushPull() {
 func (c *Client) Changes() {
 	update, err := c.c.Pull(c.ctx, &control.Request{Type: control.Request_CHANGES})
 	if err != nil {
-		c.logger.Error(fmt.Errorf("Client.changes(): %w", err).Error())
+		c.logger.Error(fmt.Errorf("client.changes(): %w", err).Error())
 		return
 	}
 	c.processUpdate(update)

@@ -1,12 +1,12 @@
 package injector
 
 import (
-	"github.com/kjbreil/syncer/control"
 	"testing"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 func TestInjector_Add(t *testing.T) {
-
 	type testStruct struct {
 		String string
 		Int    int
@@ -85,5 +85,4 @@ func TestInjector_Add(t *testing.T) {
 	// if ts.Map[2] != "M2" {
 	// 	t.Fatal("failed to add map Value at base level")
 	// }
-
 }

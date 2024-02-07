@@ -19,7 +19,7 @@ func NewDelDiff(key []*Key) *Diff {
 
 func (d *Diff) Timestamp() {
 	d.Time = timestamppb.Now()
-	for _, child := range d.Children {
+	for _, child := range d.GetChildren() {
 		child.Timestamp()
 	}
 }
@@ -28,23 +28,23 @@ func (d *Diff) Entries() []*Entry {
 	return d.entries()
 }
 func (d *Diff) entries() []*Entry {
-	var moulds []*Entry
-	for _, c := range d.Children {
-		if len(c.Children) > 0 {
-			moulds = append(moulds, c.entries()...)
+	var molds []*Entry
+	for _, c := range d.GetChildren() {
+		if len(c.GetChildren()) > 0 {
+			molds = append(molds, c.entries()...)
 		} else {
-			if c.Delete {
-				moulds = append(moulds, &Entry{
-					Key:    c.Key,
+			if c.GetDelete() {
+				molds = append(molds, &Entry{
+					Key:    c.GetKey(),
 					Action: Entry_REMOVE,
 				})
 			} else {
-				moulds = append(moulds, &Entry{
-					Key:   c.Key,
-					Value: c.Value,
+				molds = append(molds, &Entry{
+					Key:   c.GetKey(),
+					Value: c.GetValue(),
 				})
 			}
 		}
 	}
-	return moulds
+	return molds
 }

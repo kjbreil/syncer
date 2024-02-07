@@ -306,7 +306,7 @@ func BenchmarkExtractor_Diff3(b *testing.B) {
 }
 
 // reflect: 5.58 ns/op
-// stringEqual: 112.3 ns/op
+// stringEqual: 112.3 ns/op.
 func Benchmark_equal1(b *testing.B) {
 	var o, n reflect.Value
 	for i := 0; i < b.N; i++ {

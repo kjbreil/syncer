@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math/big"
 	"net"
@@ -19,14 +18,14 @@ import (
 )
 
 var (
-	ErrNotPointer               = fmt.Errorf("data must be a pointer")
-	ErrClientAlreadyConnected   = fmt.Errorf("client already connected")
-	ErrClientServerNonAvailable = fmt.Errorf("client could not find available server to connect to")
+	ErrNotPointer               = errors.New("data must be a pointer")
+	ErrClientAlreadyConnected   = errors.New("client already connected")
+	ErrClientServerNonAvailable = errors.New("client could not find available server to connect to")
 )
 
 // Endpoint contains both the server and the Client
 // The clients first attempt to connect to external servers
-// server then starts up
+// server then starts up.
 type Endpoint struct {
 	// port   int `extractor:"-"`
 	// peers  []net.TCPAddr
@@ -43,8 +42,9 @@ type Endpoint struct {
 	wg     *sync.WaitGroup    `extractor:"-"`
 }
 
-// New creates a new endpoint with the given port and peers
-// Port is the port number of the server, all peer servers will listen on this port
+// New creates a new Endpoint with the given data and settings.
+// The data must be a pointer to a struct.
+// If the data is not a pointer, an error is returned.
 func New(data any, stngs *settings2.Settings) (*Endpoint, error) {
 	if reflect.ValueOf(data).Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
@@ -67,6 +67,8 @@ func New(data any, stngs *settings2.Settings) (*Endpoint, error) {
 	return ep, nil
 }
 
+// Run starts the endpoint. If onlyClient is true, the endpoint will only run as a client.
+// If the endpoint is already running, this function does nothing.
 func (e *Endpoint) Run(onlyClient bool) {
 	if e.Running() {
 		return
@@ -80,16 +82,17 @@ func (e *Endpoint) Run(onlyClient bool) {
 	// }
 }
 
-// IsServer returns true if the endpoint is running as a server
+// IsServer returns true if the endpoint is running as a server.
 func (e *Endpoint) IsServer() bool {
 	return e.server != nil
 }
 
-// Wait blocks until the endpoint is stopped
+// Wait blocks until the endpoint is stopped.
 func (e *Endpoint) Wait() {
 	e.wg.Wait()
 }
 
+// SetLogger sets the logger for the endpoint.
 func (e *Endpoint) SetLogger(handler slog.Handler) {
 	e.logger = slog.New(handler)
 }
@@ -213,7 +216,7 @@ func (e *Endpoint) Stop() {
 	e.server = nil
 }
 
-// Running returns true if the endpoint is running
+// Running returns true if the endpoint is running.
 func (e *Endpoint) Running() bool {
 	return e.server != nil || e.client != nil
 }

@@ -6,46 +6,40 @@ import (
 )
 
 func (e *Entry) Advance() *Entry {
-	e.Key = e.Key[1:]
+	e.Key = e.GetKey()[1:]
 	return e
 }
 
 func NewObject(v any) *Object {
-	switch v.(type) {
+	switch vv := v.(type) {
 	case string:
-		vv := v.(string)
 		return &Object{String_: &vv}
 	case *string:
 		return &Object{String_: v.(*string)}
 	case int:
-		vv := int64(v.(int))
-		return &Object{Int64: &vv}
+		vvv := int64(vv)
+		return &Object{Int64: &vvv}
 	case int32:
-		vv := int64(v.(int32))
-		return &Object{Int64: &vv}
+		vvv := int64(vv)
+		return &Object{Int64: &vvv}
 	case int64:
-		vv := v.(int64)
 		return &Object{Int64: &vv}
 	case uint:
-		vv := uint64(v.(uint))
-		return &Object{Uint64: &vv}
+		vvv := uint64(vv)
+		return &Object{Uint64: &vvv}
 	case uint32:
-		vv := uint64(v.(uint32))
-		return &Object{Uint64: &vv}
+		vvv := uint64(vv)
+		return &Object{Uint64: &vvv}
 	case uint64:
-		vv := v.(uint64)
 		return &Object{Uint64: &vv}
 	case float32:
-		vv := v.(float32)
 		return &Object{Float32: &vv}
 	case float64:
-		vv := v.(float64)
 		return &Object{Float64: &vv}
 	case bool:
-		vv := v.(bool)
 		return &Object{Bool: &vv}
 	case []byte:
-		return &Object{Bytes: v.([]byte)}
+		return &Object{Bytes: vv}
 	}
 
 	return nil

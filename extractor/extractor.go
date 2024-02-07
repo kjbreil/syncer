@@ -1,8 +1,10 @@
 package extractor
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/kjbreil/syncer/control"
 )
@@ -13,33 +15,41 @@ type Extractor struct {
 }
 
 var (
-	ErrNotPointer         = fmt.Errorf("data is not a pointer")
-	ErrDataStructMisMatch = fmt.Errorf("data structs do not match")
-	ErrUnsupportedType    = fmt.Errorf("unsupported type")
+	ErrNotPointer         = errors.New("data is not a pointer")
+	ErrDataStructMisMatch = errors.New("data structs do not match")
+	ErrUnsupportedType    = errors.New("unsupported type")
 )
 
 const (
 	historySize = 100
 )
 
+// New creates a new instance of the Extractor struct.
+//
+// data: the data to be extracted from
+//
+// Returns:
+// *Extractor: a new instance of the Extractor struct.
 func New(data any) *Extractor {
+	// Get the type of the data
 	t := reflect.TypeOf(data)
+	// Iterate through pointer types until we reach the base type
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
 
+	// Create a new value of the base type
 	dataStruct := reflect.New(t)
+	// Convert the new value to an interface{} so we can access it
 	aStruct := dataStruct.Interface()
+	// Create a new instance of the Extractor struct and return it
 	return &Extractor{
 		data:    aStruct,
 		history: make([]*control.Diff, 0, historySize),
 	}
 }
 
-func (ext *Extractor) Data() any {
-	return ext.data
-}
-
+// Reset resets the data to its initial state.
 func (ext *Extractor) Reset() {
 	t := reflect.TypeOf(ext.data)
 	for t.Kind() == reflect.Ptr {
@@ -104,7 +114,7 @@ func (ext *Extractor) addHistory(head *control.Diff) {
 	// }
 	// ext.history = append(ext.history, head)
 
-	if len(head.Children) == 0 {
+	if len(head.GetChildren()) == 0 {
 		return
 	}
 	if len(ext.history) == cap(ext.history) {
@@ -120,8 +130,7 @@ func (ext *Extractor) addHistory(head *control.Diff) {
 func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error {
 	newType := newValue.Type()
 
-	zv := reflect.Value{}
-	if oldValue == zv {
+	if oldValue.IsZero() {
 		dataStruct := reflect.New(newValue.Type()).Elem()
 		oldValue = dataStruct
 	}
@@ -229,17 +238,18 @@ func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i
 
 			oldIndexValue := oldFieldValue.Index(ii)
 			// now extract
-			if newIndexValue.Type().Kind() == reflect.Ptr {
+			switch {
+			case newIndexValue.Type().Kind() == reflect.Ptr:
 				err := extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
 				if err != nil {
 					return fmt.Errorf("extractLevelSlice: %w", err)
 				}
-			} else if newIndexValue.Type().Kind() != reflect.Struct {
+			case newIndexValue.Type().Kind() != reflect.Struct:
 				err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
 				if err != nil {
 					return fmt.Errorf("extractLevelSlice: %w", err)
 				}
-			} else {
+			default:
 				err := extractChildren(parent, child, newIndexValue, oldIndexValue, &hasChildren)
 				if err != nil {
 					return fmt.Errorf("extractLevelSlice: %w", err)
@@ -270,8 +280,7 @@ func extractLevelMap(parent *control.Diff, newValue, oldValue reflect.Value, i i
 	}
 	for _, k := range newValue.Field(i).MapKeys() {
 		// append that value to the oldValue slice
-		zeroValue := reflect.Value{}
-		if oldValue.Field(i).MapIndex(k) == zeroValue {
+		if oldValue.Field(i).MapIndex(k).IsZero() {
 			// create a dataStruct of the type in the slice to append to the oldValue slice
 			dataStruct := reflect.New(newValue.Field(i).MapIndex(k).Type()).Elem()
 			oldValue.Field(i).SetMapIndex(k, dataStruct)
@@ -301,8 +310,7 @@ func extractLevelMap(parent *control.Diff, newValue, oldValue reflect.Value, i i
 	}
 	// find deletes
 	for _, k := range oldValue.Field(i).MapKeys() {
-		zeroValue := reflect.Value{}
-		if newValue.Field(i).MapIndex(k) == zeroValue {
+		if newValue.Field(i).MapIndex(k).IsZero() {
 			deleteNonStruct(parent, makeString(k), key)
 			oldValue.Field(i).SetMapIndex(k, reflect.Value{})
 		}
@@ -442,11 +450,11 @@ func makeString(x reflect.Value) string {
 	case reflect.Invalid:
 		return "invalid"
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return fmt.Sprintf("%d", x.Int())
+		return strconv.FormatInt(x.Int(), 10)
 	case reflect.Bool:
-		return fmt.Sprintf("%t", x.Bool())
+		return strconv.FormatBool(x.Bool())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return fmt.Sprintf("%d", x.Uint())
+		return strconv.FormatUint(x.Uint(), 10)
 	case reflect.Uintptr:
 		return fmt.Sprintf("%d", x.Uint())
 	case reflect.Float32, reflect.Float64:
