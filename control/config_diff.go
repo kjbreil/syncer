@@ -24,7 +24,7 @@ func (d *Diff) Timestamp() {
 	}
 }
 
-func (d *Diff) Entries() []*Entry {
+func (d *Diff) Entries() Entries {
 	return d.entries()
 }
 func (d *Diff) entries() []*Entry {
@@ -36,7 +36,7 @@ func (d *Diff) entries() []*Entry {
 			if c.GetDelete() {
 				molds = append(molds, &Entry{
 					Key:    c.GetKey(),
-					Action: Entry_REMOVE,
+					Remove: true,
 				})
 			} else {
 				molds = append(molds, &Entry{

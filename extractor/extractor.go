@@ -62,13 +62,21 @@ func (ext *Extractor) Reset() {
 	ext.data = aStruct
 }
 
+// Entries returns the entries extracted from the diff obtained by comparing the current data with the provided data.
+// If an error occurs during the diff extraction, it will panic.
+// The extracted entries are returned as an array of control.Entry objects.
+func (ext *Extractor) Entries(data any) control.Entries {
+	h, err := ext.Diff(data)
+	if err != nil {
+		panic(err)
+	}
+	return h.Entries()
+}
+
 func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 	newValue := reflect.ValueOf(data)
 	if newValue.Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
-	}
-	if reflect.DeepEqual(ext.data, data) {
-		return &control.Diff{}, nil
 	}
 
 	oldValue := reflect.ValueOf(ext.data)
@@ -88,10 +96,9 @@ func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 		panic("not same types")
 	}
 
-	headName := oldType.Name()
 	head := control.NewDiff([]*control.Key{
 		{
-			Key: headName,
+			Key: oldType.Name(),
 		},
 	},
 	)
@@ -102,7 +109,7 @@ func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 	}
 	head.Timestamp()
 
-	ext.addHistory(head)
+	// ext.addHistory(head)
 
 	return head, nil
 }
@@ -130,7 +137,7 @@ func (ext *Extractor) addHistory(head *control.Diff) {
 func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error {
 	newType := newValue.Type()
 
-	if oldValue.IsZero() {
+	if !oldValue.IsValid() {
 		dataStruct := reflect.New(newValue.Type()).Elem()
 		oldValue = dataStruct
 	}
@@ -204,16 +211,18 @@ func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i
 	for ii := 0; ii < shortest; ii++ {
 		newIndexValue, oldIndexValue := newFieldValue.Index(ii), oldFieldValue.Index(ii)
 
+		// indirect newIndexValue and oldIndexValue so we can set the value
+		newIndexValue = reflect.Indirect(newIndexValue)
+		oldIndexValue = reflect.Indirect(oldIndexValue)
+
 		if equal(newIndexValue, oldIndexValue) {
 			continue
 		}
 		indexNewValue := newIndexValue
 		switch {
 		case indexNewValue.Type().Kind() == reflect.Ptr:
-			err := extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
-			if err != nil {
-				return fmt.Errorf("extractLevelSlice: %w", err)
-			}
+			// TODO: Remove this case statement after testing
+			panic("indirect above should prevent this case statement")
 		case indexNewValue.Type().Kind() != reflect.Struct:
 			err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
 			if err != nil {
@@ -237,13 +246,16 @@ func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i
 			oldFieldValue.Set(reflect.Append(oldFieldValue, dataStruct))
 
 			oldIndexValue := oldFieldValue.Index(ii)
+
+			// indirect newIndexValue and oldIndexValue so we can set the value
+			newIndexValue = reflect.Indirect(newIndexValue)
+			oldIndexValue = reflect.Indirect(oldIndexValue)
+
 			// now extract
 			switch {
 			case newIndexValue.Type().Kind() == reflect.Ptr:
-				err := extractNonStruct(parent, newIndexValue.Elem(), oldIndexValue.Elem(), ii, key)
-				if err != nil {
-					return fmt.Errorf("extractLevelSlice: %w", err)
-				}
+				// TODO: Remove this case statement after testing
+				panic("indirect above should prevent this case statement")
 			case newIndexValue.Type().Kind() != reflect.Struct:
 				err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
 				if err != nil {
@@ -270,49 +282,61 @@ func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i
 
 func extractLevelMap(parent *control.Diff, newValue, oldValue reflect.Value, i int, oldType reflect.Type, child *control.Diff, key string) error {
 	// Make the map for the oldValue if it doesn't exist
-	if oldValue.Field(i).Len() == 0 {
+	oldValueField := reflect.Indirect(oldValue.Field(i))
+	newValueField := reflect.Indirect(newValue.Field(i))
+	if oldValueField.Len() == 0 {
 		keyType := oldType.Field(i).Type.Key()
 		valueType := oldType.Field(i).Type.Elem()
 		mapType := reflect.MapOf(keyType, valueType)
-		if oldValue.Field(i).CanSet() {
-			oldValue.Field(i).Set(reflect.MakeMapWithSize(mapType, 0))
+		if oldValueField.CanSet() {
+			oldValueField.Set(reflect.MakeMapWithSize(mapType, 0))
 		}
 	}
-	for _, k := range newValue.Field(i).MapKeys() {
+	for _, k := range newValueField.MapKeys() {
 		// append that value to the oldValue slice
-		if oldValue.Field(i).MapIndex(k).IsZero() {
+		newMapIndexValue := newValueField.MapIndex(k)
+		oldMapIndexValue := oldValueField.MapIndex(k)
+
+		if !oldMapIndexValue.IsValid() {
 			// create a dataStruct of the type in the slice to append to the oldValue slice
-			dataStruct := reflect.New(newValue.Field(i).MapIndex(k).Type()).Elem()
-			oldValue.Field(i).SetMapIndex(k, dataStruct)
+			dataStruct := reflect.New(newMapIndexValue.Type()).Elem()
+			oldValueField.SetMapIndex(k, dataStruct)
 		}
 
+		newMapIndexValue = reflect.Indirect(newMapIndexValue)
+		oldMapIndexValue = reflect.Indirect(oldMapIndexValue)
+
 		var hasChildren bool
-		switch newValue.Field(i).MapIndex(k).Type().Kind() {
+		switch newMapIndexValue.Type().Kind() {
 		case reflect.Ptr:
-			err := extractChildren(parent, child, newValue.Field(i).MapIndex(k).Elem(), oldValue.Field(i).MapIndex(k).Elem(), &hasChildren)
-			if err != nil {
-				return fmt.Errorf("extractLevelMap: %w", err)
-			}
+			// TODO: Remove this case statement after testing
+			panic("indirect above should prevent this case statement")
 		case reflect.Struct:
-			err := extractNonStruct(parent, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), makeString(k), key)
+			err := extractChildren(parent, child, newMapIndexValue, oldMapIndexValue, &hasChildren)
 			if err != nil {
 				return fmt.Errorf("extractLevelMap: %w", err)
 			}
 		default:
-			err := extractChildren(parent, child, newValue.Field(i).MapIndex(k), oldValue.Field(i).MapIndex(k), &hasChildren)
+			err := extractNonStruct(parent, newMapIndexValue, oldMapIndexValue, makeString(k), key)
 			if err != nil {
 				return fmt.Errorf("extractLevelMap: %w", err)
 			}
 		}
 
 		// the address cannot be set so setting it manually
-		oldValue.Field(i).SetMapIndex(k, newValue.Field(i).MapIndex(k))
+		// check if type is a pointer and so we can get the address of the new value instead of the value itself
+		// TODO: Probably need to make a copy of the value and then use, need test cases
+		if oldType.Field(i).Type.Elem().Kind() == reflect.Ptr {
+			oldValueField.SetMapIndex(k, newMapIndexValue.Addr())
+		} else {
+			oldValueField.SetMapIndex(k, newMapIndexValue)
+		}
 	}
 	// find deletes
-	for _, k := range oldValue.Field(i).MapKeys() {
-		if newValue.Field(i).MapIndex(k).IsZero() {
+	for _, k := range oldValueField.MapKeys() {
+		if !newValueField.MapIndex(k).IsValid() {
 			deleteNonStruct(parent, makeString(k), key)
-			oldValue.Field(i).SetMapIndex(k, reflect.Value{})
+			oldValueField.SetMapIndex(k, reflect.Value{})
 		}
 	}
 	return nil
@@ -433,7 +457,10 @@ func equal(n, o reflect.Value) bool {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return n.Uint() == o.Uint()
 	case reflect.String:
-		return n.String() == o.String()
+		newS := n.String()
+		oldS := o.String()
+		return newS == oldS
+		// return n.String() == o.String()
 	case reflect.Bool:
 		return n.Bool() == o.Bool()
 	case reflect.Float32, reflect.Float64:

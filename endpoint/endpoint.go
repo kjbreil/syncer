@@ -125,13 +125,13 @@ func (e *Endpoint) run(onlyClient bool) {
 		if !e.Running() {
 			err = e.tryPeers(false)
 			if err == nil {
-				e.logger.Info("Client Started")
+				e.logger.Info("syncer endpoint client started")
 			}
 			if errors.Is(err, ErrClientServerNonAvailable) && !onlyClient {
 				e.server, err = server.New(e.ctx, e.wg, e.data, e.settings, e.Errors)
 
 				if err == nil {
-					e.logger.Info("Server Started")
+					e.logger.Info("syncer endpoint server started")
 					checkPeersLast = time.Now()
 
 					ifaces, err := net.Interfaces()
@@ -208,9 +208,9 @@ peerLoop:
 	return ErrClientServerNonAvailable
 }
 func (e *Endpoint) Stop() {
-	e.logger.Info("stopping endpoint")
+	e.logger.Info("stopping syncer endpoint")
 	e.cancel()
-	e.logger.Info("endpoint stopped")
+	e.logger.Info("syncer endpoint stopped")
 	e.wg.Wait()
 	e.client = nil
 	e.server = nil
