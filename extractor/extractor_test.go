@@ -35,18 +35,18 @@ type SD struct {
 }
 
 func TestNew(t *testing.T) {
-	sliceEntries := 1
 
 	ts := TestStruct{
-		Slice: make([]int, 0, sliceEntries),
+		Slice: []int{1, 2},
 	}
 	ext := New(ts)
-	// add in slice entries
-	for ii := 0; ii < sliceEntries; ii++ {
-		ts.Slice = append(ts.Slice, ii)
-	}
-	ext.Diff(ts)
-	fmt.Println("here")
+
+	entries := ext.Entries(&ts)
+	fmt.Println(len(entries))
+	ts.Slice = []int{1}
+	entries = ext.Entries(&ts)
+	fmt.Println(len(entries))
+
 }
 
 func makeBaseTestStruct() TestStruct {
@@ -217,6 +217,11 @@ func BenchmarkExtractor_Diff(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = ext.Entries(&ts)
 		_ = ext.Entries(&cs)
+
+		// 		got := ext.Entries(&ts)
+		//		fmt.Println(len(got))
+		//		got = ext.Entries(&cs)
+		//		fmt.Println(len(got))
 	}
 }
 
@@ -752,6 +757,27 @@ func TestExtractor_Entries(t *testing.T) {
 			},
 		},
 		{
+			name: "remove from int slice check update old",
+			modFn: func() {
+				ts.Slice = ts.Slice[:len(ts.Slice)-1]
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key:   "TestStruct",
+							Index: &control.Object{},
+						},
+						{
+							Key:   "Slice",
+							Index: &control.Object{Int64: control.MakePtr(int64(2))},
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
 			name: "remove pointer struct",
 			modFn: func() {
 				ts.SubPtr = nil
@@ -776,6 +802,7 @@ func TestExtractor_Entries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// make sure a base slate is set before running the modFn
+			ts = makeBaseTestStruct()
 			ext.Entries(&ts)
 			tt.modFn()
 

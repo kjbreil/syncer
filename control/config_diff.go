@@ -23,6 +23,9 @@ func (d *Diff) Timestamp() {
 		child.Timestamp()
 	}
 }
+func (d *Diff) AddChild(child *Diff) {
+	d.Children = append(d.Children, child)
+}
 
 func (d *Diff) Entries() Entries {
 	return d.entries()

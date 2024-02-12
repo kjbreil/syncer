@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"sync"
 
 	"github.com/kjbreil/syncer/control"
 )
@@ -12,6 +13,7 @@ import (
 type Extractor struct {
 	data    any
 	history []*control.Diff
+	mut     *sync.Mutex
 }
 
 var (
@@ -46,6 +48,7 @@ func New(data any) *Extractor {
 	return &Extractor{
 		data:    aStruct,
 		history: make([]*control.Diff, 0, historySize),
+		mut:     &sync.Mutex{},
 	}
 }
 
@@ -74,6 +77,8 @@ func (ext *Extractor) Entries(data any) control.Entries {
 }
 
 func (ext *Extractor) Diff(data any) (*control.Diff, error) {
+	ext.mut.Lock()
+	defer ext.mut.Unlock()
 	newValue := reflect.ValueOf(data)
 	if newValue.Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
@@ -181,7 +186,7 @@ func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error 
 				return fmt.Errorf("extractLevel: %w", err)
 			}
 			if child.Children != nil {
-				parent.Children = append(parent.Children, child)
+				parent.AddChild(child)
 			}
 			err = extractChildren(parent, child, newValue.Field(i), oldValue.Field(i), &hasChildren)
 			if err != nil {
@@ -194,7 +199,7 @@ func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error 
 				if err != nil {
 					return fmt.Errorf("extractLevel: %w", err)
 				}
-				parent.Children = append(parent.Children, child)
+				parent.AddChild(child)
 				if oldValue.Field(i).CanSet() {
 					oldValue.Field(i).Set(newValue.Field(i))
 				}
@@ -276,6 +281,12 @@ func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i
 		}
 	}
 
+	// change the old slice to the same length of the new slice for copying
+	if oldFieldValue.CanSet() {
+
+		oldFieldValue.SetLen(newFieldValue.Len())
+	}
+
 	reflect.Copy(oldFieldValue, newFieldValue)
 	return nil
 }
@@ -346,7 +357,7 @@ func extractLevelPointer(parent *control.Diff, newValue, oldValue reflect.Value,
 	if newValue.Field(i).IsNil() {
 		if !oldValue.Field(i).IsNil() {
 			child.Delete = true
-			parent.Children = append(parent.Children, child)
+			parent.AddChild(child)
 			if oldValue.CanSet() {
 				oldValue.Set(newValue)
 			}
@@ -417,7 +428,7 @@ func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue ref
 		if err != nil {
 			return fmt.Errorf("extractNonStruct: %w", err)
 		}
-		parent.Children = append(parent.Children, child)
+		parent.AddChild(child)
 		if oldValue.CanSet() {
 			oldValue.Set(newValue)
 		}
@@ -432,7 +443,7 @@ func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) 
 		Index: control.NewObject(index),
 	}),
 	)
-	parent.Children = append(parent.Children, child)
+	parent.AddChild(child)
 }
 
 func extractChildren(parent *control.Diff, child *control.Diff, newValue, oldValue reflect.Value, hasChildren *bool) error {
@@ -441,7 +452,7 @@ func extractChildren(parent *control.Diff, child *control.Diff, newValue, oldVal
 		return fmt.Errorf("extractChildren: %w", err)
 	}
 	if !*hasChildren && child.Children != nil {
-		parent.Children = append(parent.Children, child)
+		parent.AddChild(child)
 		*hasChildren = true
 	}
 	return nil
