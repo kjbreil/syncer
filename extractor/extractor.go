@@ -169,7 +169,7 @@ func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error 
 
 		switch newValueFieldKind {
 		case reflect.Pointer:
-			extractLevelPointer(parent, newValue, oldValue, i, child)
+			extractLevelPointer(parent, newValue.Field(i), oldValue.Field(i), child)
 		case reflect.Map:
 			err := extractLevelMap(parent, newValue, oldValue, i, oldType, child, key)
 			if err != nil {
@@ -362,9 +362,11 @@ func extractLevelMap(parent *control.Diff, newValue, oldValue reflect.Value, i i
 	return nil
 }
 
-func extractLevelPointer(parent *control.Diff, newValue, oldValue reflect.Value, i int, child *control.Diff) {
-	if newValue.Field(i).IsNil() {
-		if !oldValue.Field(i).IsNil() {
+func extractLevelPointer(parent *control.Diff, newValue, oldValue reflect.Value, child *control.Diff) {
+	// check if the newValue is null
+	if newValue.IsNil() {
+		// if newValue is null and oldValue is not null then create delete
+		if !oldValue.IsNil() {
 			child.Delete = true
 			parent.AddChild(child, 10)
 			if oldValue.CanSet() {
@@ -373,11 +375,12 @@ func extractLevelPointer(parent *control.Diff, newValue, oldValue reflect.Value,
 		}
 		return
 	}
-	if oldValue.Field(i).IsNil() {
-		oldValue.Field(i).Set(reflect.New(newValue.Field(i).Elem().Type()))
+	// if the old value is null then generate a blank type to compare against in oldValue
+	if oldValue.IsNil() {
+		oldValue.Set(reflect.New(newValue.Elem().Type()))
 	}
 	var hasChildren bool
-	err := extractChildren(parent, child, newValue.Field(i).Elem(), oldValue.Field(i).Elem(), &hasChildren)
+	err := extractChildren(parent, child, newValue.Elem(), oldValue.Elem(), &hasChildren)
 	if err != nil {
 		return
 	}
