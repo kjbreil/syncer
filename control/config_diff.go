@@ -23,7 +23,10 @@ func (d *Diff) Timestamp() {
 		child.Timestamp()
 	}
 }
-func (d *Diff) AddChild(child *Diff) {
+func (d *Diff) AddChild(child *Diff, length int) {
+	if len(d.Children) == 0 {
+		d.Children = make([]*Diff, 0, length)
+	}
 	d.Children = append(d.Children, child)
 }
 

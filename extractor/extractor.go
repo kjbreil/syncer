@@ -186,7 +186,7 @@ func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error 
 				return fmt.Errorf("extractLevel: %w", err)
 			}
 			if child.Children != nil {
-				parent.AddChild(child)
+				parent.AddChild(child, numFields)
 			}
 			err = extractChildren(parent, child, newValue.Field(i), oldValue.Field(i), &hasChildren)
 			if err != nil {
@@ -199,7 +199,7 @@ func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error 
 				if err != nil {
 					return fmt.Errorf("extractLevel: %w", err)
 				}
-				parent.AddChild(child)
+				parent.AddChild(child, numFields)
 				if oldValue.Field(i).CanSet() {
 					oldValue.Field(i).Set(newValue.Field(i))
 				}
@@ -229,9 +229,12 @@ func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i
 			// TODO: Remove this case statement after testing
 			panic("indirect above should prevent this case statement")
 		case indexNewValue.Type().Kind() != reflect.Struct:
-			err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
+			child, err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
 			if err != nil {
 				return fmt.Errorf("extractLevelSlice: %w", err)
+			}
+			if child != nil {
+				parent.AddChild(child, shortest)
 			}
 		default:
 			err := extractChildren(parent, child, newIndexValue, oldIndexValue, &hasChildren)
@@ -262,9 +265,12 @@ func extractLevelSlice(parent *control.Diff, newValue, oldValue reflect.Value, i
 				// TODO: Remove this case statement after testing
 				panic("indirect above should prevent this case statement")
 			case newIndexValue.Type().Kind() != reflect.Struct:
-				err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
+				child, err := extractNonStruct(parent, newIndexValue, oldIndexValue, ii, key)
 				if err != nil {
 					return fmt.Errorf("extractLevelSlice: %w", err)
+				}
+				if child != nil {
+					parent.AddChild(child, newFieldValue.Len())
 				}
 			default:
 				err := extractChildren(parent, child, newIndexValue, oldIndexValue, &hasChildren)
@@ -328,9 +334,12 @@ func extractLevelMap(parent *control.Diff, newValue, oldValue reflect.Value, i i
 				return fmt.Errorf("extractLevelMap: %w", err)
 			}
 		default:
-			err := extractNonStruct(parent, newMapIndexValue, oldMapIndexValue, makeString(k), key)
+			child, err := extractNonStruct(parent, newMapIndexValue, oldMapIndexValue, makeString(k), key)
 			if err != nil {
 				return fmt.Errorf("extractLevelMap: %w", err)
+			}
+			if child != nil {
+				parent.AddChild(child, newValueField.Len())
 			}
 		}
 
@@ -357,7 +366,7 @@ func extractLevelPointer(parent *control.Diff, newValue, oldValue reflect.Value,
 	if newValue.Field(i).IsNil() {
 		if !oldValue.Field(i).IsNil() {
 			child.Delete = true
-			parent.AddChild(child)
+			parent.AddChild(child, 10)
 			if oldValue.CanSet() {
 				oldValue.Set(newValue)
 			}
@@ -401,7 +410,7 @@ func setValue(va reflect.Value, child *control.Diff) error {
 	return nil
 }
 
-func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, index any, key string) error {
+func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue reflect.Value, index any, key string) (*control.Diff, error) {
 	if !equal(newValue, oldValue) {
 		var indexObject control.Object
 		switch v := index.(type) {
@@ -416,7 +425,7 @@ func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue ref
 		case int64:
 			indexObject.Int64 = &v
 		default:
-			return fmt.Errorf("extractNonStruct: %w", ErrUnsupportedType)
+			return nil, fmt.Errorf("extractNonStruct: %w", ErrUnsupportedType)
 		}
 
 		child := control.NewDiff(append(parent.Key, &control.Key{
@@ -426,15 +435,15 @@ func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue ref
 		)
 		err := setValue(newValue, child)
 		if err != nil {
-			return fmt.Errorf("extractNonStruct: %w", err)
+			return nil, fmt.Errorf("extractNonStruct: %w", err)
 		}
-		parent.AddChild(child)
 		if oldValue.CanSet() {
 			oldValue.Set(newValue)
 		}
+		return child, nil
 	}
 
-	return nil
+	return nil, nil
 }
 
 func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) {
@@ -443,7 +452,7 @@ func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) 
 		Index: control.NewObject(index),
 	}),
 	)
-	parent.AddChild(child)
+	parent.AddChild(child, 10)
 }
 
 func extractChildren(parent *control.Diff, child *control.Diff, newValue, oldValue reflect.Value, hasChildren *bool) error {
@@ -452,7 +461,7 @@ func extractChildren(parent *control.Diff, child *control.Diff, newValue, oldVal
 		return fmt.Errorf("extractChildren: %w", err)
 	}
 	if !*hasChildren && child.Children != nil {
-		parent.AddChild(child)
+		parent.AddChild(child, 10)
 		*hasChildren = true
 	}
 	return nil
