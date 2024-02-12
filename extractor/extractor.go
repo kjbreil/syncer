@@ -79,6 +79,7 @@ func (ext *Extractor) Entries(data any) control.Entries {
 func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 	ext.mut.Lock()
 	defer ext.mut.Unlock()
+
 	newValue := reflect.ValueOf(data)
 	if newValue.Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
@@ -101,12 +102,13 @@ func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 		panic("not same types")
 	}
 
-	head := control.NewDiff([]*control.Key{
-		{
-			Key: oldType.Name(),
-		},
-	},
-	)
+	// head := control.NewDiff([]*control.Key{
+	// 	{
+	// 		Key: oldType.Name(),
+	// 	},
+	// },
+	// )
+	head := control.NewDiff(&control.Key{Key: oldType.Name()})
 
 	err := extractLevel(head, newValue, oldValue)
 	if err != nil {
@@ -160,10 +162,7 @@ func extractLevel(parent *control.Diff, newValue, oldValue reflect.Value) error 
 		}
 
 		key := oldType.Field(i).Name
-		child := control.NewDiff(append(parent.Key, &control.Key{
-			Key: key,
-		}),
-		)
+		child := control.NewDiff(&control.Key{Key: key})
 		hasChildren := false
 		newValueFieldKind := newValue.Field(i).Kind()
 
@@ -431,11 +430,10 @@ func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue ref
 			return nil, fmt.Errorf("extractNonStruct: %w", ErrUnsupportedType)
 		}
 
-		child := control.NewDiff(append(parent.Key, &control.Key{
+		child := control.NewDiff(&control.Key{
 			Key:   key,
 			Index: &indexObject,
-		}),
-		)
+		})
 		err := setValue(newValue, child)
 		if err != nil {
 			return nil, fmt.Errorf("extractNonStruct: %w", err)
@@ -450,11 +448,10 @@ func extractNonStruct(parent *control.Diff, newValue reflect.Value, oldValue ref
 }
 
 func deleteNonStruct[i int | string](parent *control.Diff, index i, key string) {
-	child := control.NewDelDiff(append(parent.Key, &control.Key{
+	child := control.NewDelDiff(&control.Key{
 		Key:   key,
 		Index: control.NewObject(index),
-	}),
-	)
+	})
 	parent.AddChild(child, 10)
 }
 

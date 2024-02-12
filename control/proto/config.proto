@@ -51,7 +51,7 @@ message Object {
 
 message Diff {
   repeated Diff children = 1;
-  repeated Key key = 2;
+  Key key = 2;
   Object value = 3;
   bool delete = 4;
   google.protobuf.Timestamp time = 5;
