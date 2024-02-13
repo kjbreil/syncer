@@ -70,24 +70,25 @@ func (ext *Extractor) Entries(data any) control.Entries {
 	return h.Entries()
 }
 
-func (ext *Extractor) Diff(data any) (*control.Diff, error) {
+func (ext *Extractor) Diff(currData any) (*control.Diff, error) {
 	// force single threaded access
 	ext.mut.Lock()
 	defer ext.mut.Unlock()
+
+	// copy the current data as a point in time
+	data := copyData(currData)
 
 	newValue := reflect.ValueOf(data)
 	if newValue.Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
 	}
 
-	// follow the pointer to the actual value
 	newValue = reflect.Indirect(newValue)
 	oldValue := reflect.Indirect(reflect.ValueOf(ext.data))
 
 	head := extractObject(newValue, oldValue, newValue.Type().Name())
 
 	head.Timestamp()
-
 	return head, nil
 }
 
@@ -330,4 +331,15 @@ func indirect(newValue, oldValue reflect.Value) (reflect.Value, reflect.Value) {
 		oldValue = oldValue.Elem()
 	}
 	return newValue, oldValue
+}
+
+func copyData[T any](data T) T {
+	t := reflect.TypeOf(data).Elem()
+	dataStruct := reflect.New(t)
+
+	currData := reflect.ValueOf(data)
+
+	dataStruct.Elem().Set(currData.Elem())
+
+	return dataStruct.Interface().(T)
 }
