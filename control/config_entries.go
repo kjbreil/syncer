@@ -99,6 +99,9 @@ func (e *Entry) Equals(other *Entry) bool {
 		if k.GetKey() != other.GetKey()[i].GetKey() {
 			return false
 		}
+		if !k.GetIndex().Equals(other.GetKey()[i].GetIndex()) {
+			return false
+		}
 	}
 
 	if e.GetValue() == nil && other.GetValue() == nil {

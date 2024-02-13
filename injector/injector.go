@@ -115,7 +115,15 @@ func setValueSlice(va reflect.Value, ctrl *control.Entry) error {
 	if ctrl.GetKey()[0].GetIndex() == nil {
 		return errors.New("slice type without index")
 	}
+	// if ctrl is a delete entry then delete the current index+
 	indexInt := int(ctrl.GetKey()[0].GetIndex().GetInt64())
+	if ctrl.GetRemove() {
+		newSlice := reflect.MakeSlice(va.Type(), indexInt, indexInt)
+		reflect.Copy(newSlice, va)
+		va.Set(newSlice)
+		return nil
+	}
+
 	// create a slice of the elements needed
 	diff := indexInt + 1 - va.Len()
 	if diff > 0 {

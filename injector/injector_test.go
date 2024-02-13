@@ -1,88 +1,92 @@
 package injector
 
 import (
-	"testing"
-
+	"fmt"
 	"github.com/kjbreil/syncer/control"
+	"testing"
 )
 
+type TestStruct struct {
+	String         string
+	Int            int
+	Slice          []int
+	SliceStruct    []SD
+	SlicePtr       []*int
+	SlicePtrStruct []*SD
+	Map            map[string]int
+	MapStruct      map[string]TestStruct
+	MapPtr         map[string]*int
+	MapPtrStruct   map[string]*TestStruct
+	Sub            TestSub
+	SubPtr         *TestStruct
+}
+type TestSub struct {
+	String string
+}
+
+type SD struct {
+	Name string
+	Data string
+}
+
+//nolint:gocognit
 func TestInjector_Add(t *testing.T) {
-	type testStruct struct {
-		String string
-		Int    int
-		Slice  []string
-		Map    map[int]string
-		Sub    *testStruct
-	}
-
-	ts := testStruct{
-		String: "Test",
-		Int:    1,
-		Slice:  []string{"S0"},
-		Map: map[int]string{
-			1: "M1",
-		},
-		Sub: &testStruct{
-			String: "SubTest",
-			Slice:  nil,
-			Map:    nil,
-		},
-	}
-
-	// Create an injector that is invalid since the passed struct is not a pointer
-	inj, err := New(ts)
-	if err == nil {
-		t.Fatal("passed non pointer to injector")
-	}
-
-	inj, err = New(&ts)
+	ts := TestStruct{}
+	inj, err := New(&ts)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = inj.Add(&control.Entry{
-		Key: []*control.Key{
-			{Key: "testStruct"},
-			{Key: "String"},
+	tests := []struct {
+		name    string
+		entries control.Entries
+		preFn   func()
+		wantErr bool
+		wantFn  func() error
+	}{
+		{
+			name: "change string",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key:   "TestStruct",
+							Index: &control.Object{},
+						},
+						{
+							Key:   "String",
+							Index: &control.Object{},
+						},
+					},
+					Value: &control.Object{String_: control.MakePtr("change string")},
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.String != "change string" {
+					return fmt.Errorf("string %s should be \"change string\"", ts.String)
+				}
+				return nil
+			},
 		},
-		Value: control.NewObject("Test2"),
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
-	if ts.String != "Test2" {
-		t.Fatal("failed to add string Value at base level")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.preFn != nil {
+				tt.preFn()
+			}
+
+			for _, e := range tt.entries {
+				err = inj.Add(e)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Injector.Add() error = %v, wantErr %v", err, tt.wantErr)
+				}
+			}
+			if tt.wantFn != nil {
+				if err = tt.wantFn(); err != nil {
+					t.Errorf("Injector.Add() = %v", err)
+				}
+			}
+		})
 	}
-	//
-	// err = inj.Add(parse("testStruct.Slice[0]", "S0N", Add))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if ts.Slice[0] != "S0N" {
-	// 	t.Fatal("failed to add slice Value at base level")
-	// }
-	//
-	// err = inj.Add(parse("testStruct.Slice[5]", "S5", Add))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if ts.Slice[5] != "S5" {
-	// 	t.Fatal("failed to add slice Value at base level")
-	// }
-	//
-	// err = inj.Add(parse("testStruct.Map[1]", "M1N", Add))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if ts.Map[1] != "M1N" {
-	// 	t.Fatal("failed to add map Value at base level")
-	// }
-	//
-	// err = inj.Add(parse("testStruct.Map[2]", "M2", Add))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if ts.Map[2] != "M2" {
-	// 	t.Fatal("failed to add map Value at base level")
-	// }
 }

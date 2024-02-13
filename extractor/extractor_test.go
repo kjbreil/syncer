@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -21,9 +22,8 @@ type TestStruct struct {
 	Sub            TestSub
 	SubPtr         *TestStruct
 }
-
 type TestStruct2 struct {
-	SubPtr *TestStruct
+	Slice []int
 }
 
 type TestSub struct {
@@ -33,6 +33,18 @@ type TestSub struct {
 type SD struct {
 	Name string
 	Data string
+}
+
+func TestNew(t *testing.T) {
+	ts := TestStruct2{
+		Slice: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+	}
+	ext := New(&ts)
+	entries := ext.Entries(&ts)
+	ts.Slice = ts.Slice[:len(ts.Slice)-5]
+	entries = ext.Entries(&ts)
+	fmt.Println(entries.Struct())
+
 }
 
 func makeBaseTestStruct() TestStruct {
@@ -221,7 +233,9 @@ func TestExtractor_Entries(t *testing.T) {
 		{
 			name: "remove from int slice",
 			modFn: func() {
-				ts.Slice = ts.Slice[:len(ts.Slice)-1]
+				ts.Slice = []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
+				_ = ext.Entries(&ts)
+				ts.Slice = ts.Slice[:len(ts.Slice)-5]
 			},
 			want: []*control.Entry{
 				{
@@ -253,7 +267,7 @@ func TestExtractor_Entries(t *testing.T) {
 						},
 						{
 							Key:   "Slice",
-							Index: &control.Object{Int64: control.MakePtr(int64(2))},
+							Index: &control.Object{Int64: control.MakePtr(int64(4))},
 						},
 					},
 					Remove: true,
