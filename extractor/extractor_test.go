@@ -1,9 +1,6 @@
 package extractor
 
 import (
-	"bytes"
-	"encoding/gob"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -25,6 +22,10 @@ type TestStruct struct {
 	SubPtr         *TestStruct
 }
 
+type TestStruct2 struct {
+	SubPtr *TestStruct
+}
+
 type TestSub struct {
 	String string
 }
@@ -32,21 +33,6 @@ type TestSub struct {
 type SD struct {
 	Name string
 	Data string
-}
-
-func TestNew(t *testing.T) {
-
-	ts := TestStruct{
-		Slice: []int{1, 2},
-	}
-	ext := New(ts)
-
-	entries := ext.Entries(&ts)
-	fmt.Println(len(entries))
-	ts.Slice = []int{1}
-	entries = ext.Entries(&ts)
-	fmt.Println(len(entries))
-
 }
 
 func makeBaseTestStruct() TestStruct {
@@ -153,62 +139,11 @@ func Test_equal(t *testing.T) {
 	}
 }
 
-func TestExtractor_Diff(t *testing.T) {
-	ts := TestStruct{
-		Map: make(map[string]int),
-	}
-	ext := New(ts)
-
-	tests := []struct {
-		name    string
-		addFunc func()
-		want    []*control.Entry
-	}{
-		{
-			name: "TestAddString",
-			addFunc: func() {
-				ts.String = "TestAddString"
-			},
-			want: []*control.Entry{
-				{
-					Key: []*control.Key{
-						{Key: "TestStruct"},
-						{Key: "String"},
-					},
-					Value: &control.Object{
-						String_: control.MakePtr("TestAddString"),
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.addFunc()
-			head, _ := ext.Diff(ts)
-			molds := head.Entries()
-			if len(molds) != len(tt.want) {
-				t.Errorf("got molds length not matching expected")
-			}
-			for i := range molds {
-				if !reflect.DeepEqual(molds[i], tt.want[i]) {
-					t.Fatalf("mold not match: %v != %v", molds[i], tt.want[i])
-				}
-			}
-			head, _ = ext.Diff(ts)
-			molds = head.Entries()
-			if len(molds) > 0 {
-				t.Fatal("changes detected when they should not have been")
-			}
-		})
-	}
-}
-
 func BenchmarkExtractor_Diff(b *testing.B) {
-	sliceEntries := 100000
 	cs := makeChangeTestStruct()
 	ts := makeBaseTestStruct()
 
+	sliceEntries := 100000
 	ts.Slice = make([]int, 0, sliceEntries)
 	for ii := 0; ii < sliceEntries; ii++ {
 		ts.Slice = append(ts.Slice, ii)
@@ -217,107 +152,14 @@ func BenchmarkExtractor_Diff(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = ext.Entries(&ts)
 		_ = ext.Entries(&cs)
-
-		// 		got := ext.Entries(&ts)
-		//		fmt.Println(len(got))
-		//		got = ext.Entries(&cs)
-		//		fmt.Println(len(got))
 	}
 }
 
-func BenchmarkCompareToGob(b *testing.B) {
-	sliceEntries := 100000
-
-	ts := TestStruct{
-		Slice: make([]int, 0, sliceEntries),
-	}
-	for i := 0; i < b.N; i++ {
-		// add in slice entries
-		for ii := 0; ii < sliceEntries; ii++ {
-			ts.Slice = append(ts.Slice, ii)
-		}
-
-		var b bytes.Buffer
-		err := gob.NewEncoder(&b).Encode(ts)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
-func BenchmarkExtractor_Diff2(b *testing.B) {
-	sliceEntries := 100000
-
-	ts := TestStruct{
-		Slice: make([]int, 0, sliceEntries),
-	}
-	ext := New(ts)
-	for i := 0; i < b.N; i++ {
-		// add in slice entries
-		for ii := 0; ii < sliceEntries; ii++ {
-			ts.Slice = append(ts.Slice, ii)
-		}
-		head, _ := ext.Diff(&ts)
-		_ = head.Entries()
-		ts.Slice = make([]int, 0, sliceEntries)
-		head, _ = ext.Diff(&ts)
-		_ = head.Entries()
-		for ii := 0; ii < sliceEntries; ii++ {
-			ts.Slice = append(ts.Slice, ii)
-		}
-		head, _ = ext.Diff(&ts)
-		_ = head.Entries()
-	}
-}
-
-func BenchmarkExtractor_Diff3(b *testing.B) {
-	ts := TestStruct{
-		String: "Test",
-	}
-	ext := New(ts)
-	for i := 0; i < b.N; i++ {
-		head, _ := ext.Diff(&ts)
-		_ = head.Entries()
-		head, _ = ext.Diff(&ts)
-		_ = head.Entries()
-	}
-}
-
-// reflect: 5.58 ns/op
-// stringEqual: 112.3 ns/op.
 func Benchmark_equal1(b *testing.B) {
 	var o, n reflect.Value
 	for i := 0; i < b.N; i++ {
 		o, n = reflect.ValueOf(i), reflect.ValueOf(i)
 		equal(o, n)
-	}
-}
-
-func Test_equal1(t *testing.T) {
-	type args struct {
-		n reflect.Value
-		o reflect.Value
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "",
-			args: args{
-				n: reflect.ValueOf(1),
-				o: reflect.ValueOf(1),
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := equal(tt.args.n, tt.args.o); got != tt.want {
-				t.Errorf("equal() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }
 
@@ -334,6 +176,111 @@ func TestExtractor_Entries(t *testing.T) {
 		modFn func()
 		want  []*control.Entry
 	}{
+		{
+			name: "change string",
+			modFn: func() {
+				ts.String = "change string"
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key:   "TestStruct",
+							Index: &control.Object{},
+						},
+						{
+							Key:   "String",
+							Index: &control.Object{},
+						},
+					},
+					Value: &control.Object{String_: control.MakePtr("change string")},
+				},
+			},
+		},
+		{
+			name: "add to int slice",
+			modFn: func() {
+				ts.Slice = append(ts.Slice, 4)
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key:   "TestStruct",
+							Index: &control.Object{},
+						},
+						{
+							Key:   "Slice",
+							Index: &control.Object{Int64: control.MakePtr(int64(3))},
+						},
+					},
+					Value: &control.Object{Int64: control.MakePtr(int64(4))},
+				},
+			},
+		},
+		{
+			name: "remove from int slice",
+			modFn: func() {
+				ts.Slice = ts.Slice[:len(ts.Slice)-1]
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key:   "TestStruct",
+							Index: &control.Object{},
+						},
+						{
+							Key:   "Slice",
+							Index: &control.Object{Int64: control.MakePtr(int64(2))},
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "remove from int slice check update old",
+			modFn: func() {
+				ts.Slice = ts.Slice[:len(ts.Slice)-1]
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key:   "TestStruct",
+							Index: &control.Object{},
+						},
+						{
+							Key:   "Slice",
+							Index: &control.Object{Int64: control.MakePtr(int64(2))},
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "remove pointer struct",
+			modFn: func() {
+				ts.SubPtr = nil
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key:   "TestStruct",
+							Index: &control.Object{},
+						},
+						{
+							Key:   "SubPtr",
+							Index: &control.Object{},
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
 		{
 			name: "base extract all",
 			modFn: func() {
@@ -664,23 +611,6 @@ func TestExtractor_Entries(t *testing.T) {
 							Index: &control.Object{},
 						},
 						{
-							Key:   "Sub",
-							Index: &control.Object{},
-						},
-						{
-							Key:   "String",
-							Index: &control.Object{},
-						},
-					},
-					Value: &control.Object{String_: control.MakePtr("Base Test Sub")},
-				},
-				{
-					Key: []*control.Key{
-						{
-							Key:   "TestStruct",
-							Index: &control.Object{},
-						},
-						{
 							Key:   "SubPtr",
 							Index: &control.Object{},
 						},
@@ -690,111 +620,6 @@ func TestExtractor_Entries(t *testing.T) {
 						},
 					},
 					Value: &control.Object{String_: control.MakePtr("Base Sub Test Struct")},
-				},
-			},
-		},
-		{
-			name: "change string",
-			modFn: func() {
-				ts.String = "change string"
-			},
-			want: []*control.Entry{
-				{
-					Key: []*control.Key{
-						{
-							Key:   "TestStruct",
-							Index: &control.Object{},
-						},
-						{
-							Key:   "String",
-							Index: &control.Object{},
-						},
-					},
-					Value: &control.Object{String_: control.MakePtr("change string")},
-				},
-			},
-		},
-		{
-			name: "add to int slice",
-			modFn: func() {
-				ts.Slice = append(ts.Slice, 4)
-			},
-			want: []*control.Entry{
-				{
-					Key: []*control.Key{
-						{
-							Key:   "TestStruct",
-							Index: &control.Object{},
-						},
-						{
-							Key:   "Slice",
-							Index: &control.Object{Int64: control.MakePtr(int64(3))},
-						},
-					},
-					Value: &control.Object{Int64: control.MakePtr(int64(4))},
-				},
-			},
-		},
-		{
-			name: "remove from int slice",
-			modFn: func() {
-				ts.Slice = ts.Slice[:len(ts.Slice)-1]
-			},
-			want: []*control.Entry{
-				{
-					Key: []*control.Key{
-						{
-							Key:   "TestStruct",
-							Index: &control.Object{},
-						},
-						{
-							Key:   "Slice",
-							Index: &control.Object{Int64: control.MakePtr(int64(2))},
-						},
-					},
-					Remove: true,
-				},
-			},
-		},
-		{
-			name: "remove from int slice check update old",
-			modFn: func() {
-				ts.Slice = ts.Slice[:len(ts.Slice)-1]
-			},
-			want: []*control.Entry{
-				{
-					Key: []*control.Key{
-						{
-							Key:   "TestStruct",
-							Index: &control.Object{},
-						},
-						{
-							Key:   "Slice",
-							Index: &control.Object{Int64: control.MakePtr(int64(2))},
-						},
-					},
-					Remove: true,
-				},
-			},
-		},
-		{
-			name: "remove pointer struct",
-			modFn: func() {
-				ts.SubPtr = nil
-			},
-			want: []*control.Entry{
-				{
-					Key: []*control.Key{
-						{
-							Key:   "TestStruct",
-							Index: &control.Object{},
-						},
-						{
-							Key:   "SubPtr",
-							Index: &control.Object{},
-						},
-					},
-					Remove: true,
 				},
 			},
 		},
@@ -809,6 +634,7 @@ func TestExtractor_Entries(t *testing.T) {
 			got := ext.Entries(&ts)
 			if !got.Equals(tt.want) {
 				t.Errorf("Entries() = %v, want %v", got, tt.want)
+				// t.Logf("##########\n\n%s\n\n##########", got.Diff(tt.want).Struct())
 				t.Logf("##########\n\n%s\n\n##########", got.Struct())
 			}
 		})

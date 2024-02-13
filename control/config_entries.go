@@ -28,6 +28,17 @@ func (ent Entries) Equals(other Entries) bool {
 	return true
 }
 
+func (ent Entries) Diff(other Entries) *Entries {
+	var diff Entries
+	for i, e := range ent {
+		if !e.Equals(other[i]) {
+			diff = append(diff, e)
+		}
+	}
+
+	return &diff
+}
+
 func (e *Entry) Struct() string {
 	var s string
 	s += "{\n\tKey: []*control.Key{\n"
