@@ -112,32 +112,35 @@ func extractObject(newValue, oldValue reflect.Value, keyName string) *control.Di
 	// loop over the fields of the newValue finding the relevant matching field in the old value
 	numFields := newValue.NumField()
 	for i := 0; i < numFields; i++ {
-		newValueFieldKind := newValue.Field(i).Kind()
+		newValueField := newValue.Field(i)
+		newValueFieldKind := newValueField.Kind()
 
+		oldValueField := oldValue.Field(i)
+		newValueTypeField := newValue.Type().Field(i)
 		switch newValueFieldKind {
 		case reflect.Struct, reflect.Interface:
-			child := extractObject(newValue.Field(i), oldValue.Field(i), newValue.Type().Field(i).Name)
+			child := extractObject(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
 		case reflect.Pointer:
-			child := extractObjectPtr(newValue.Field(i), oldValue.Field(i), newValue.Type().Field(i).Name)
+			child := extractObjectPtr(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
 		case reflect.Map:
-			children := extractMap(newValue.Field(i), oldValue.Field(i), oldValue.Type().Field(i).Type, newValue.Type().Field(i).Name)
+			children := extractMap(newValueField, oldValueField, newValueTypeField.Type, newValueTypeField.Name)
 			if len(children) > 0 {
 				current.Children = append(current.Children, children...)
 			}
 		case reflect.Slice, reflect.Array:
-			children := extractSlice(newValue.Field(i), oldValue.Field(i), newValue.Type().Field(i).Name)
+			children := extractSlice(newValueField, oldValueField, newValueTypeField.Name)
 			if len(children) > 0 {
 				current.Children = append(current.Children, children...)
 			}
 		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-			child := extractConcrete(newValue.Field(i), oldValue.Field(i), newValue.Type().Field(i).Name)
+			child := extractConcrete(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
