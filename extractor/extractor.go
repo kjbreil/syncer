@@ -236,34 +236,48 @@ func extractBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName stri
 	}
 	return nil
 }
-func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflect.Value, keyName string, index T) *control.Diff {
+func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflect.Value, keyName string, index T) []*control.Diff {
 	switch newValue.Kind() {
 	case reflect.Struct:
 		child := extractObject(newValue, oldValue, keyName)
 		if child != nil {
-			child.Key.Index = control.NewObject(index)
-			return child
+			child.Key.Index = control.NewObjects(index)
+			return []*control.Diff{child}
 		}
 	case reflect.Interface:
 
-		// // if the old value is not valid
-		// if !oldValue.IsValid() {
-		// 	oldValue = reflect.New(newValue.Elem().Type())
-		// }
 		child := extractObjectInterface(newValue, oldValue, keyName)
 		if child != nil {
-			child.Key.Index = control.NewObject(index)
-			return child
+			child.Key.Index = control.NewObjects(index)
+			return []*control.Diff{child}
 		}
 	case reflect.Map:
-		panic("map not supported here")
+		if !oldValue.IsValid() {
+			keyType := newValue.Type().Key()
+			valueType := newValue.Type().Elem()
+			mapType := reflect.MapOf(keyType, valueType)
+			oldValue = reflect.MakeMapWithSize(mapType, 0)
+		}
+		children := extractMap(newValue, oldValue, newValue.Type(), keyName)
+		if len(children) > 0 {
+			for _, c := range children {
+				c.Key.Index = control.NewObjects(index, c.GetKey().GetIndex()...)
+			}
+			return children
+		}
 	case reflect.Slice, reflect.Array:
-		panic("slice not supported here")
+		children := extractSlice(newValue, oldValue, keyName)
+		if len(children) > 0 {
+			for _, c := range children {
+				c.Key.Index = control.NewObjects(index, c.GetKey().GetIndex()...)
+			}
+			return children
+		}
 	default:
 		if !equal(newValue, oldValue) {
 			child := control.NewDiff(&control.Key{
 				Key:   keyName,
-				Index: control.NewObject(index),
+				Index: control.NewObjects(index),
 			})
 			err := child.SetValue(reflect.Indirect(newValue))
 			if err != nil {
@@ -272,7 +286,7 @@ func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflec
 			if oldValue.CanSet() {
 				oldValue.Set(newValue)
 			}
-			return child
+			return []*control.Diff{child}
 		}
 	}
 	return nil
@@ -281,7 +295,7 @@ func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflec
 func deleteIndexBuiltIn[T int | string](keyName string, index T) *control.Diff {
 	return control.NewDelDiff(&control.Key{
 		Key:   keyName,
-		Index: control.NewObject(index),
+		Index: control.NewObjects(index),
 	})
 }
 
@@ -313,9 +327,9 @@ func extractSlice(newValue, oldValue reflect.Value, keyName string) []*control.D
 			continue
 		}
 
-		child := extractIndexBuiltIn(newIndexValue, oldIndexValue, keyName, i)
-		if child != nil {
-			children = append(children, child)
+		childs := extractIndexBuiltIn(newIndexValue, oldIndexValue, keyName, i)
+		if len(childs) > 0 {
+			children = append(children, childs...)
 		}
 	}
 
@@ -356,9 +370,9 @@ func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, key
 		newMapIndexValue = reflect.Indirect(newMapIndexValue)
 		oldMapIndexValue = reflect.Indirect(oldMapIndexValue)
 
-		child := extractIndexBuiltIn(newMapIndexValue, oldMapIndexValue, keyName, makeString(k))
-		if child != nil {
-			children = append(children, child)
+		childs := extractIndexBuiltIn(newMapIndexValue, oldMapIndexValue, keyName, makeString(k))
+		if len(childs) > 0 {
+			children = append(children, childs...)
 		}
 
 		if newUpperType.Elem().Kind() == reflect.Ptr {

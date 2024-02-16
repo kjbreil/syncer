@@ -10,6 +10,16 @@ func (e *Entry) Advance() *Entry {
 	return e
 }
 
+func NewObjects(v any, oo ...*Object) []*Object {
+	objects := make([]*Object, len(oo)+1)
+	objects[0] = NewObject(v)
+	for i, o := range oo {
+		objects[i+1] = o
+	}
+
+	return objects
+}
+
 func NewObject(v any) *Object {
 	switch vv := v.(type) {
 	case string:
@@ -40,6 +50,10 @@ func NewObject(v any) *Object {
 		return &Object{Bool: &vv}
 	case []byte:
 		return &Object{Bytes: vv}
+	case Object:
+		return &vv
+	case *Object:
+		return vv
 	}
 
 	return nil

@@ -87,10 +87,10 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 
 	switch keyType.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		indexInt := int(ctrl.GetKey()[0].GetIndex().GetInt64())
+		indexInt := int(ctrl.GetKey()[0].GetIndex()[0].GetInt64())
 		iKey = reflect.ValueOf(indexInt)
 	case reflect.String:
-		iKey = reflect.ValueOf(ctrl.GetKey()[0].GetIndex().GetString_()).Elem()
+		iKey = reflect.ValueOf(ctrl.GetKey()[0].GetIndex()[0].GetString_())
 	default:
 		panic("I don't know what i'm doing here")
 	}
@@ -101,22 +101,47 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 		iValue = reflect.ValueOf(indexInt)
 	case reflect.String:
 		iValue = reflect.ValueOf(ctrl.GetValue().GetString_())
+	case reflect.Map:
+		// TODO: Check if value exists and use that otherwise create new map
+		if va.Len() == 0 {
+			keyType = va.Type().Elem().Key()
+			vt := va.Type().Elem().Elem()
+			mapType := reflect.MapOf(keyType, vt)
+			iValue = reflect.MakeMapWithSize(mapType, 0)
+		} else {
+			iValue = va.MapIndex(iKey)
+		}
+		if len(ctrl.GetKey()[0].GetIndex()) > 1 {
+			ctrl.Key[0].Index = ctrl.GetKey()[0].GetIndex()[1:]
+		}
+		err := setValue(iValue, ctrl)
+		if err != nil {
+			return err
+		}
 	default:
 		panic("I don't know what i'm doing here")
 	}
 	if iKey.IsZero() || iValue.IsZero() {
 		return errors.New("keys or Value Value is zero")
 	}
+	if va.Len() == 0 {
+		vt := va.Type().Elem()
+		mapType := reflect.MapOf(keyType, vt)
+		if va.CanSet() {
+			va.Set(reflect.MakeMapWithSize(mapType, 0))
+		}
+	}
+
 	va.SetMapIndex(iKey, iValue)
 	return nil
 }
 
 func setValueSlice(va reflect.Value, ctrl *control.Entry) error {
-	if ctrl.GetKey()[0].GetIndex() == nil {
+	if len(ctrl.GetKey()[0].GetIndex()) == 0 {
 		return errors.New("slice type without index")
 	}
 	// if ctrl is a delete entry then delete the current index+
-	indexInt := int(ctrl.GetKey()[0].GetIndex().GetInt64())
+	indexInt := int(ctrl.GetKey()[0].GetIndex()[0].GetInt64())
 	if ctrl.GetRemove() {
 		newSlice := reflect.MakeSlice(va.Type(), indexInt, indexInt)
 		reflect.Copy(newSlice, va)
@@ -131,5 +156,9 @@ func setValueSlice(va reflect.Value, ctrl *control.Entry) error {
 		va.Set(reflect.AppendSlice(va, newSlice))
 	}
 
+	// e.Key = e.GetKey()[1:]
+	if len(ctrl.GetKey()[0].GetIndex()) > 1 {
+		ctrl.Key[0].Index = ctrl.GetKey()[0].GetIndex()[1:]
+	}
 	return setValue(va.Index(indexInt), ctrl)
 }

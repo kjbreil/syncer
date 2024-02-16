@@ -36,7 +36,7 @@ message Entry {
 
 message Key {
   string Key = 1;
-  optional Object Index = 2;
+  repeated Object Index = 2;
 }
 
 message Object {

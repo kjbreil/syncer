@@ -43,7 +43,7 @@ func (e *Entry) Struct() string {
 	var s string
 	s += "{\n\tKey: []*control.Key{\n"
 	for _, k := range e.GetKey() {
-		s += fmt.Sprintf("\t\t{\n\t\t\tKey: \"%s\",\n\t\t\tIndex: %s,\n\t\t},\n", k.GetKey(), k.GetIndex().Struct())
+		s += fmt.Sprintf("\t\t{\n\t\t\tKey: \"%s\",\n\t\t\tIndex: %s,\n\t\t},\n", k.GetKey(), Objects(k.GetIndex()).Struct())
 	}
 	s += "\t},\n"
 	if e.GetRemove() {
@@ -99,7 +99,7 @@ func (e *Entry) Equals(other *Entry) bool {
 		if k.GetKey() != other.GetKey()[i].GetKey() {
 			return false
 		}
-		if !k.GetIndex().Equals(other.GetKey()[i].GetIndex()) {
+		if !Objects(k.GetIndex()).Equals(other.GetKey()[i].GetIndex()) {
 			return false
 		}
 	}
