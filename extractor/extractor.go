@@ -151,7 +151,7 @@ func extractObject(newValue, oldValue reflect.Value, keyName string) *control.Di
 			}
 		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-			child := extractConcrete(newValueField, oldValueField, newValueTypeField.Name)
+			child := extractBuiltIn(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
@@ -214,7 +214,7 @@ func extractObjectInterface(newValue, oldValue reflect.Value, keyName string) *c
 	return child
 }
 
-func extractConcrete(newValue reflect.Value, oldValue reflect.Value, keyName string) *control.Diff {
+func extractBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName string) *control.Diff {
 	if !equal(newValue, oldValue) {
 		child := control.NewDiff(&control.Key{
 			Key: keyName,
@@ -235,6 +235,12 @@ func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflec
 	switch newValue.Kind() {
 	case reflect.Struct:
 		child := extractObject(newValue, oldValue, keyName)
+		if child != nil {
+			child.Key.Index = control.NewObject(index)
+			return child
+		}
+	case reflect.Interface:
+		child := extractObject(newValue.Elem(), oldValue.Elem(), keyName)
 		if child != nil {
 			child.Key.Index = control.NewObject(index)
 			return child
