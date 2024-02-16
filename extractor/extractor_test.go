@@ -29,8 +29,9 @@ type TestStruct struct {
 }
 type TestStruct2 struct {
 	// MapMap map[string]map[string]int
-	SliceSlice [][]int
-	// String string
+	// SliceSlice [][]int
+	String     string
+	unexported string
 }
 
 type TestSub struct {
@@ -55,11 +56,12 @@ func TestNew(t *testing.T) {
 		// MapMap: map[string]map[string]int{
 		// 	"top": {"Next": 1},
 		// },
-		// String: "test",
-		SliceSlice: [][]int{
-			{1, 2, 3},
-			{4, 5, 6},
-		},
+		String:     "test",
+		unexported: "testunex",
+		// SliceSlice: [][]int{
+		// 	{1, 2, 3},
+		// 	{4, 5, 6},
+		// },
 	}
 	ext := New(&ts)
 	entries := ext.Entries(&ts)

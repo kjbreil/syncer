@@ -117,6 +117,9 @@ func extractObject(newValue, oldValue reflect.Value, keyName string) *control.Di
 		if etag == "-" {
 			continue
 		}
+		if !newValue.Field(i).CanInterface() {
+			continue
+		}
 
 		newValueField := newValue.Field(i)
 		newValueFieldKind := newValueField.Kind()
