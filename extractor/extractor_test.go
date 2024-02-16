@@ -11,6 +11,7 @@ import (
 type TestStruct struct {
 	String         string
 	Int            int
+	Interface      TestInterface
 	Slice          []int
 	SliceStruct    []SD
 	SlicePtr       []*int
@@ -23,11 +24,11 @@ type TestStruct struct {
 	SubPtr         *TestStruct
 }
 type TestStruct2 struct {
-	Slice []int
+	Interface TestInterface
 }
 
 type TestSub struct {
-	String string
+	S string
 }
 
 type SD struct {
@@ -35,13 +36,20 @@ type SD struct {
 	Data string
 }
 
+type TestInterface interface {
+	String() string
+}
+
+func (t *TestSub) String() string {
+	return t.S
+}
+
 func TestNew(t *testing.T) {
 	ts := TestStruct2{
-		Slice: []int{1, 2, 3, 4, 5, 6, 7, 8, 9},
+		Interface: &TestSub{S: "TestSub"},
 	}
 	ext := New(&ts)
 	entries := ext.Entries(&ts)
-	ts.Slice = ts.Slice[:len(ts.Slice)-5]
 	entries = ext.Entries(&ts)
 	fmt.Println(entries.Struct())
 
@@ -49,9 +57,10 @@ func TestNew(t *testing.T) {
 
 func makeBaseTestStruct() TestStruct {
 	return TestStruct{
-		String: "Base String",
-		Int:    1,
-		Slice:  []int{1, 2, 3},
+		String:    "Base String",
+		Int:       1,
+		Interface: &TestSub{S: "TestInterface"},
+		Slice:     []int{1, 2, 3},
 		SliceStruct: []SD{
 			{Name: "Base SliceStruct Name 1", Data: "Base SliceStruct Data 1"},
 			{Name: "Base SliceStruct Name 2", Data: "Base SliceStruct Data 2"},
@@ -75,7 +84,7 @@ func makeBaseTestStruct() TestStruct {
 			"Base First": {String: "Base First Test Struct"},
 		},
 		Sub: TestSub{
-			String: "Base Test Sub",
+			S: "Base Test Sub",
 		},
 		SubPtr: &TestStruct{String: "Base Sub Test Struct"},
 	}
@@ -109,7 +118,7 @@ func makeChangeTestStruct() TestStruct {
 			"Change First": {String: "Change First Test Struct"},
 		},
 		Sub: TestSub{
-			String: "Change Test Sub",
+			S: "Change Test Sub",
 		},
 		SubPtr: &TestStruct{String: "Change Sub Test Struct"},
 	}
@@ -652,5 +661,19 @@ func TestExtractor_Entries(t *testing.T) {
 				t.Logf("##########\n\n%s\n\n##########", got.Struct())
 			}
 		})
+	}
+}
+
+func Test_copyData(t *testing.T) {
+	ds := struct {
+		Name string
+	}{
+		Name: "Test",
+	}
+
+	newD := copyData(&ds)
+	ds.Name = "modified"
+	if ds.Name == newD.Name {
+		t.Errorf("copyData() = %v, want %v", ds.Name, "modified")
 	}
 }

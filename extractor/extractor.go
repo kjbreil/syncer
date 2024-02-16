@@ -109,23 +109,33 @@ func extractObject(newValue, oldValue reflect.Value, keyName string) *control.Di
 	newValue = reflect.Indirect(newValue)
 	oldValue = reflect.Indirect(oldValue)
 	// newValue, oldValue = indirect(newValue, oldValue)
-
 	// loop over the fields of the newValue finding the relevant matching field in the old value
 	numFields := newValue.NumField()
 	for i := 0; i < numFields; i++ {
+		// skip if extractor tag is set
+		etag := newValue.Type().Field(i).Tag.Get("extractor")
+		if etag == "-" {
+			continue
+		}
+
 		newValueField := newValue.Field(i)
 		newValueFieldKind := newValueField.Kind()
 
 		oldValueField := oldValue.Field(i)
 		newValueTypeField := newValue.Type().Field(i)
 		switch newValueFieldKind {
-		case reflect.Struct, reflect.Interface:
+		case reflect.Struct:
 			child := extractObject(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
 		case reflect.Pointer:
 			child := extractObjectPtr(newValueField, oldValueField, newValueTypeField.Name)
+			if child != nil {
+				current.Children = append(current.Children, child)
+			}
+		case reflect.Interface:
+			child := extractObjectInterface(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
@@ -178,7 +188,30 @@ func extractObjectPtr(newValue, oldValue reflect.Value, keyName string) *control
 	child := extractObject(newValue.Elem(), oldValue.Elem(), keyName)
 
 	return child
+}
 
+func extractObjectInterface(newValue, oldValue reflect.Value, keyName string) *control.Diff {
+	// check if the newValue is null
+	if newValue.IsNil() {
+		// if newValue is null and oldValue is not null then create delete
+		if !oldValue.IsNil() {
+			return control.NewDelDiff(&control.Key{
+				Key: keyName,
+			})
+		}
+		return nil
+	}
+	// if the old value is null then generate a blank type to compare against in oldValue
+	if oldValue.IsNil() {
+		t := newValue.Elem().Type()
+		if t.Kind() == reflect.Ptr {
+			t = t.Elem()
+		}
+		oldValue.Set(reflect.New(t))
+	}
+	child := extractObject(newValue.Elem(), oldValue.Elem(), keyName)
+
+	return child
 }
 
 func extractConcrete(newValue reflect.Value, oldValue reflect.Value, keyName string) *control.Diff {
