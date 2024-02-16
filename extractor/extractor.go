@@ -201,6 +201,11 @@ func extractObjectInterface(newValue, oldValue reflect.Value, keyName string) *c
 		}
 		return nil
 	}
+
+	if !oldValue.IsValid() {
+		oldValue = reflect.New(newValue.Elem().Type().Elem())
+	}
+
 	// if the old value is null then generate a blank type to compare against in oldValue
 	if oldValue.IsNil() {
 		t := newValue.Elem().Type()
@@ -240,7 +245,12 @@ func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflec
 			return child
 		}
 	case reflect.Interface:
-		child := extractObject(newValue.Elem(), oldValue.Elem(), keyName)
+
+		// // if the old value is not valid
+		// if !oldValue.IsValid() {
+		// 	oldValue = reflect.New(newValue.Elem().Type())
+		// }
+		child := extractObjectInterface(newValue, oldValue, keyName)
 		if child != nil {
 			child.Key.Index = control.NewObject(index)
 			return child
