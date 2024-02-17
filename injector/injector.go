@@ -48,6 +48,7 @@ func (inj *Injector) Add(ctrl *control.Entry) error {
 }
 
 func add(v reflect.Value, ctrl *control.Entry) error {
+	v = reflect.Indirect(v)
 
 	if va := v.FieldByName(ctrl.GetKey()[0].GetKey()); va.IsValid() {
 		if len(ctrl.GetKey()) > 1 {
