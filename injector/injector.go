@@ -30,11 +30,8 @@ func New(data any) (*Injector, error) {
 
 // Add adds a control entry to the data.
 func (inj *Injector) Add(ctrl *control.Entry) error {
-	return add(inj.data, ctrl)
-}
 
-func add(data any, ctrl *control.Entry) error {
-	v := reflect.ValueOf(data)
+	v := reflect.ValueOf(inj.data)
 
 	// if it is a pointer follow to the real data
 	for v.Kind() == reflect.Ptr {
@@ -44,20 +41,22 @@ func add(data any, ctrl *control.Entry) error {
 	t := v.Type()
 
 	if t.Name() != ctrl.GetKey()[0].GetKey() {
-		return fmt.Errorf("type mismatch %s!= %s", t.Name(), ctrl.GetKey()[0].GetKey())
+		return fmt.Errorf("injector top level type mismatch %s  != %s", t.Name(), ctrl.GetKey()[0].GetKey())
 	}
-	ctrl.Advance()
 
-	for i := 0; i < v.NumField(); i++ {
-		if t.Field(i).Name == ctrl.GetKey()[0].GetKey() {
-			va := v.Field(i)
-			if len(ctrl.GetKey()) > 1 {
-				return add(va.Interface(), ctrl.Advance())
-			} else if va.CanSet() {
-				return setValue(va, ctrl)
-			}
+	return add(v, ctrl.Advance())
+}
+
+func add(v reflect.Value, ctrl *control.Entry) error {
+
+	if va := v.FieldByName(ctrl.GetKey()[0].GetKey()); va.IsValid() {
+		if len(ctrl.GetKey()) > 1 {
+			return add(va, ctrl.Advance())
+		} else if va.CanSet() {
+			return setValue(va, ctrl)
 		}
 	}
+
 	return errors.New("key not found in data")
 }
 

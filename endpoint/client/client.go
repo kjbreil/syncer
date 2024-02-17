@@ -148,7 +148,7 @@ func (c *Client) PushPull() {
 	}
 	var wg sync.WaitGroup
 	mu := &sync.Mutex{}
-	checkInterval := time.Millisecond * 100
+	checkInterval := time.Millisecond * 1000
 
 	wg.Add(1)
 	go func() {
