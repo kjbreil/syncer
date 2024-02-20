@@ -52,6 +52,7 @@ func add(v reflect.Value, ctrl *control.Entry) error {
 	v = reflect.Indirect(v)
 
 	if va := v.FieldByName(ctrl.GetKey()[ctrl.GetKeyI()].GetKey()); va.IsValid() {
+		va = reflect.Indirect(va)
 		switch va.Kind() {
 		case reflect.Slice:
 			return setValueSlice(va, ctrl)
