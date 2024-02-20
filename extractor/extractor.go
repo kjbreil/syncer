@@ -34,9 +34,6 @@ func New(data any) (*Extractor, error) {
 		return nil, errors.New("data is nil")
 	}
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	if t.Kind() != reflect.Ptr {
-		return nil, errors.New("data is not a pointer")
-	}
 	dataStruct := reflect.New(t)
 	aStruct := dataStruct.Interface()
 	return &Extractor{

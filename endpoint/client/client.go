@@ -59,7 +59,6 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 	}
 
 	c.ctx, c.cancel = context.WithCancel(ctx)
-	defer c.cancel()
 
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -73,7 +72,6 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 	if err != nil {
 		return nil, ErrClientNotAvailable
 	}
-	defer c.conn.Close()
 
 	c.c = control.NewConfigClient(c.conn)
 
