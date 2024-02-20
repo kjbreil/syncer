@@ -58,6 +58,9 @@ func add(v reflect.Value, ctrl *control.Entry) error {
 			return setValueSlice(va, ctrl)
 		case reflect.Map:
 			return setValueMap(va, ctrl)
+		case reflect.Interface:
+			va = va.Elem()
+			fallthrough
 		case reflect.Struct:
 			return add(va, ctrl.Advance())
 		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -82,6 +85,9 @@ func setValue(va reflect.Value, ctrl *control.Entry) error {
 		return setValueSlice(va, ctrl)
 	case reflect.Map:
 		return setValueMap(va, ctrl)
+	case reflect.Interface:
+		va = va.Elem()
+		fallthrough
 	case reflect.Struct:
 		return add(va, ctrl.Advance())
 	case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -159,7 +165,8 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 		if err != nil {
 			return err
 		}
-	case reflect.Struct:
+
+	case reflect.Struct, reflect.Interface:
 		// if the map is empty, create a new map with the correct key and value types
 		if va.Len() == 0 {
 			// get the key and value types of the map element
@@ -181,6 +188,9 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 		// copy the current value to the iValue so we can modify
 		if currValue.IsValid() {
 			iValue.Set(currValue)
+		}
+		if iValue.Kind() == reflect.Interface {
+			iValue = iValue.Elem()
 		}
 		// add the indexed value based on the advanced control entry
 		err := add(iValue, ctrl.Advance())
