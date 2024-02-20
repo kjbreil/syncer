@@ -29,28 +29,32 @@ const (
 //
 // Returns:
 // *Extractor: a new instance of the Extractor struct.
-func New(data any) *Extractor {
-	// Get the type of the data
-	t := reflect.TypeOf(data)
-	// Iterate through pointer types until we reach the base type
-	for t.Kind() == reflect.Ptr {
-		t = t.Elem()
+func New(data any) (*Extractor, error) {
+	if data == nil {
+		return nil, errors.New("data is nil")
 	}
-
-	// Create a new value of the base type
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	if t.Kind() != reflect.Ptr {
+		return nil, errors.New("data is not a pointer")
+	}
 	dataStruct := reflect.New(t)
-	// Convert the new value to an interface{} so we can access it
 	aStruct := dataStruct.Interface()
-	// Create a new instance of the Extractor struct and return it
 	return &Extractor{
 		data:    aStruct,
 		history: make([]*control.Diff, 0, historySize),
-		mut:     &sync.Mutex{},
-	}
+		mut:     new(sync.Mutex),
+	}, nil
 }
 
 // Reset resets the data to its initial state.
 func (ext *Extractor) Reset() {
+	ext.mut.Lock()
+	defer ext.mut.Unlock()
+
+	if ext.data == nil {
+		return
+	}
+
 	t := reflect.TypeOf(ext.data)
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -62,6 +66,9 @@ func (ext *Extractor) Reset() {
 	ext.data = aStruct
 }
 
+// Entries returns the Entries from the Extractor.
+//
+// The function takes in a parameter 'data' of type 'any' and returns a value of type 'control.Entries'.
 func (ext *Extractor) Entries(data any) control.Entries {
 	h, err := ext.Diff(data)
 	if err != nil {
@@ -92,6 +99,10 @@ func (ext *Extractor) Diff(currData any) (*control.Diff, error) {
 	return head, nil
 }
 
+// extractObject performs a deep comparison of two reflect Values and creates a control.Diff
+//
+// newValue, oldValue reflect.Value, keyName string
+// *control.Diff
 func extractObject(newValue, oldValue reflect.Value, keyName string) *control.Diff {
 
 	// TODO: This should check if oldValue is valid and return a delete if it is

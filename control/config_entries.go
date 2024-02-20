@@ -1,16 +1,19 @@
 package control
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Entries []*Entry
 
 func (ent *Entries) Struct() string {
-	var s string
+	var builder strings.Builder
 	for _, e := range *ent {
-		s += e.Struct()
+		builder.WriteString(e.Struct())
 	}
 
-	return s
+	return builder.String()
 }
 
 func (ent Entries) Equals(other Entries) bool {
@@ -22,7 +25,6 @@ func (ent Entries) Equals(other Entries) bool {
 		if !e.Equals(other[i]) {
 			return false
 		}
-
 	}
 
 	return true
@@ -40,46 +42,51 @@ func (ent Entries) Diff(other Entries) *Entries {
 }
 
 func (e *Entry) Struct() string {
-	var s string
-	s += "{\n\tKey: []*control.Key{\n"
+	var sb strings.Builder
+	sb.WriteString("{\n\tKey: []*control.Key{\n")
 	for _, k := range e.GetKey() {
-		s += fmt.Sprintf("\t\t{\n\t\t\tKey: \"%s\",\n\t\t\tIndex: %s,\n\t\t},\n", k.GetKey(), Objects(k.GetIndex()).Struct())
+		key := k.GetKey()
+		index := Objects(k.GetIndex()).Struct()
+		sb.WriteString("\t\t{\n")
+		sb.WriteString(fmt.Sprintf("\t\t\tKey: \"%s\",\n", key))
+		sb.WriteString(fmt.Sprintf("\t\t\tIndex: %s,\n", index))
+		sb.WriteString("\t\t},\n")
 	}
-	s += "\t},\n"
+	sb.WriteString("\t},\n")
+	var valueString string
 	if e.GetRemove() {
-		s += "\tRemove: true,\n"
+		valueString = "\tRemove: true,\n"
 	} else {
-		s += fmt.Sprintf("\tValue: %s,\n", e.GetValue().Struct())
+		valueString = fmt.Sprintf("\tValue: %s,\n", e.GetValue().Struct())
 	}
-
-	s += "},\n"
-
-	return s
+	sb.WriteString(valueString)
+	sb.WriteString("},\n")
+	return sb.String()
 }
 
 func (o *Object) Struct() string {
-	var s string
-	s += "&control.Object{"
-	if o != nil {
-		switch {
-		case o.String_ != nil:
-			s += fmt.Sprintf("String_: control.MakePtr(\"%s\")", o.GetString_())
-		case o.Int64 != nil:
-			s += fmt.Sprintf("Int64: control.MakePtr(int64(%d))", o.GetInt64())
-		case o.Uint64 != nil:
-			s += fmt.Sprintf("Uint64: control.MakePtr(uint64(%d)),\n", o.GetUint64())
-		case o.Float32 != nil:
-			s += fmt.Sprintf("Float32: control.MakePtr(%f)", o.GetFloat32())
-		case o.Float64 != nil:
-			s += fmt.Sprintf("Float64: control.MakePtr(%f)", o.GetFloat64())
-		case o.Bool != nil:
-			s += fmt.Sprintf("Bool: control.MakePtr(%t)", o.GetBool())
-		case o.Bytes != nil:
-			s += fmt.Sprintf("Bytes: []byte{0x%02x}", o.GetBytes())
-		}
+	if o == nil {
+		return ""
 	}
-	s += "}"
-	return s
+	var sb strings.Builder
+	sb.WriteString("&control.Object{")
+	if o.String_ != nil {
+		sb.WriteString(fmt.Sprintf("String_: control.MakePtr(\"%s\")", o.GetString_()))
+	} else if o.Int64 != nil {
+		sb.WriteString(fmt.Sprintf("Int64: control.MakePtr(strconv.FormatInt(%d, 10))", o.GetInt64()))
+	} else if o.Uint64 != nil {
+		sb.WriteString(fmt.Sprintf("Uint64: control.MakePtr(strconv.FormatUint(%d, 10))", o.GetUint64()))
+	} else if o.Float32 != nil {
+		sb.WriteString(fmt.Sprintf("Float32: control.MakePtr(strconv.FormatFloat(float64(%f), 'f', -1, 32))", o.GetFloat32()))
+	} else if o.Float64 != nil {
+		sb.WriteString(fmt.Sprintf("Float64: control.MakePtr(strconv.FormatFloat(%f, 'f', -1, 64))", o.GetFloat64()))
+	} else if o.Bool != nil {
+		sb.WriteString(fmt.Sprintf("Bool: control.MakePtr(strconv.FormatBool(%t))", o.GetBool()))
+	} else if o.Bytes != nil {
+		sb.WriteString(fmt.Sprintf("Bytes: []byte(hex.EncodeToString(%v))", o.GetBytes()))
+	}
+	sb.WriteString("}")
+	return sb.String()
 }
 
 func (e *Entry) Equals(other *Entry) bool {

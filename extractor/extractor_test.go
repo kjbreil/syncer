@@ -2,6 +2,7 @@ package extractor
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"testing"
 
@@ -30,8 +31,9 @@ type TestStruct struct {
 type TestStruct2 struct {
 	// MapMap map[string]map[string]int
 	// SliceSlice [][]int
-	String     string
-	unexported string
+	// String     string
+	// unexported string
+	IP net.IP
 }
 
 type TestSub struct {
@@ -56,17 +58,21 @@ func TestNew(t *testing.T) {
 		// MapMap: map[string]map[string]int{
 		// 	"top": {"Next": 1},
 		// },
-		String:     "test",
-		unexported: "testunex",
+		// String:     "test",
+		// unexported: "testunex",
 		// SliceSlice: [][]int{
 		// 	{1, 2, 3},
 		// 	{4, 5, 6},
 		// },
+		IP: net.ParseIP("127.0.0.1"),
 	}
-	ext := New(&ts)
+	ext, err := New(&ts)
+	if err != nil {
+		t.Fatal(err)
+	}
 	entries := ext.Entries(&ts)
-	entries = ext.Entries(&ts)
 	fmt.Println(entries.Struct())
+	entries = ext.Entries(&ts)
 
 }
 
@@ -184,7 +190,10 @@ func BenchmarkExtractor_Diff(b *testing.B) {
 	for ii := 0; ii < sliceEntries; ii++ {
 		ts.Slice = append(ts.Slice, ii)
 	}
-	ext := New(ts)
+	ext, err := New(ts)
+	if err != nil {
+		b.Fatal(err)
+	}
 	for i := 0; i < b.N; i++ {
 		_ = ext.Entries(&ts)
 		_ = ext.Entries(&cs)

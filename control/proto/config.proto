@@ -30,8 +30,9 @@ message Request{
 
 message Entry {
   repeated Key Key = 1;
-  Object Value = 2;
-  bool Remove = 3;
+  int64 KeyI = 2;
+  Object Value = 3;
+  bool Remove = 4;
 }
 
 message Key {

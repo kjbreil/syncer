@@ -6,7 +6,8 @@ import (
 )
 
 func (e *Entry) Advance() *Entry {
-	e.Key = e.GetKey()[1:]
+	// e.Key = e.GetKey()[1:]
+	e.KeyI++
 	return e
 }
 
@@ -20,6 +21,7 @@ func NewObjects(v any, oo ...*Object) []*Object {
 	return objects
 }
 
+//nolint:funlen
 func NewObject(v any) *Object {
 	switch vv := v.(type) {
 	case string:
@@ -29,12 +31,24 @@ func NewObject(v any) *Object {
 	case int:
 		vvv := int64(vv)
 		return &Object{Int64: &vvv}
+	case int8:
+		vvv := int64(vv)
+		return &Object{Int64: &vvv}
+	case int16:
+		vvv := int64(vv)
+		return &Object{Int64: &vvv}
 	case int32:
 		vvv := int64(vv)
 		return &Object{Int64: &vvv}
 	case int64:
 		return &Object{Int64: &vv}
 	case uint:
+		vvv := uint64(vv)
+		return &Object{Uint64: &vvv}
+	case uint8:
+		vvv := uint64(vv)
+		return &Object{Uint64: &vvv}
+	case uint16:
 		vvv := uint64(vv)
 		return &Object{Uint64: &vvv}
 	case uint32:

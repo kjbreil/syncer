@@ -3,6 +3,7 @@ package injector
 import (
 	"fmt"
 	"github.com/kjbreil/syncer/control"
+	"net"
 	"testing"
 )
 
@@ -21,14 +22,89 @@ type TestStruct struct {
 	MapMap         map[string]map[string]int
 	Sub            TestSub
 	SubPtr         *TestStruct
+	IP             net.IP
 }
 type TestSub struct {
+	Sub2 string
+}
+
+type TestSub2 struct {
 	String string
 }
 
 type SD struct {
 	Name string
 	Data string
+}
+type TestStruct2 struct {
+	Reservations map[string]Reservation4
+}
+type Reservation4 struct {
+	IP       net.IP           `json:"IP,omitempty"`
+	MAC      net.HardwareAddr `json:"MAC,omitempty"`
+	Hostname string           `json:"Hostname,omitempty"`
+}
+
+func TestInjector_AddS(t *testing.T) {
+	ts := TestStruct2{
+
+		// Reservations: map[string]Reservation4{
+		// 	"sn": {
+		// 		IP: net.ParseIP("192.168.1.1"),
+		// 	},
+		// },
+	}
+	inj, err := New(&ts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// entries := []*control.Entry{
+	// 	{
+	// 		Key: []*control.Key{
+	// 			{
+	// 				Key: "TestStruct2",
+	// 			},
+	// 			{
+	// 				Key:   "SliceStruct",
+	// 				Index: control.NewObjects(0),
+	// 			},
+	// 			{
+	// 				Key: "Name",
+	// 			},
+	// 		},
+	// 		Value: control.NewObject("oneone"),
+	// 	},
+	// }
+
+	entries := []*control.Entry{
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct2",
+				},
+				{
+					Key:   "Reservations",
+					Index: control.NewObjects("sn"),
+				},
+
+				{
+					Key:   "IP",
+					Index: control.NewObjects(0),
+				},
+			},
+			Value: control.NewObject(uint8(255)),
+		},
+	}
+	for _, e := range entries {
+
+		err = inj.Add(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	fmt.Println(ts)
 }
 
 //nolint:gocognit
@@ -48,6 +124,32 @@ func TestInjector_Add(t *testing.T) {
 	}{
 		{
 			name: "change string",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Sub",
+						},
+						{
+							Key: "Sub2",
+						},
+					},
+					Value: &control.Object{String_: control.MakePtr("change string")},
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.String != "change string" {
+					return fmt.Errorf("string %s should be \"change string\"", ts.String)
+				}
+				return nil
+			},
+		},
+		{
+			name: "Test Sub",
 			entries: []*control.Entry{
 				{
 					Key: []*control.Key{
@@ -94,6 +196,30 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
+			name: "Add To Slice",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "IP",
+							Index: control.NewObjects(0),
+						},
+					},
+					Value: control.NewObject(255),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if len(ts.Slice) == 0 || ts.Slice[0] != 1 {
+					return fmt.Errorf("ts.Slice is length %d, should be 1", len(ts.Slice))
+				}
+				return nil
+			},
+		},
+		{
 			name: "Add To SliceSlice",
 			entries: []*control.Entry{
 				{
@@ -111,7 +237,6 @@ func TestInjector_Add(t *testing.T) {
 			},
 			wantErr: false,
 			wantFn: func() error {
-				t.Fatal("test broken")
 				if len(ts.Slice) == 0 || ts.Slice[0] != 1 {
 					return fmt.Errorf("ts.Slice is length %d, should be 1", len(ts.Slice))
 				}

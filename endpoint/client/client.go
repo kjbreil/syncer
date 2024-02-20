@@ -44,6 +44,10 @@ type Client struct {
 	logger *slog.Logger
 }
 
+// New creates a new client that connects to the given peer.
+// The given data is used to synchronize the local state with the remote one.
+// The given errors channel is used to send log records.
+// The given settings are used to control the behavior of the client.
 func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, errs chan *slog.Record, settings *settings.Settings) (*Client, error) {
 	var err error
 
@@ -55,6 +59,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 	}
 
 	c.ctx, c.cancel = context.WithCancel(ctx)
+	defer c.cancel()
 
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -66,9 +71,9 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 	defer cancel()
 	c.conn, err = grpc.DialContext(dialCtx, addr, opts...)
 	if err != nil {
-		c.cancel()
 		return nil, ErrClientNotAvailable
 	}
+	defer c.conn.Close()
 
 	c.c = control.NewConfigClient(c.conn)
 
@@ -84,12 +89,6 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 					c.cancel()
 				}
 			case <-c.ctx.Done():
-
-				err = c.conn.Close()
-				if err != nil {
-					c.logger.Error(err.Error())
-					return
-				}
 				return
 			}
 		}

@@ -207,6 +207,8 @@ peerLoop:
 	}
 	return ErrClientServerNonAvailable
 }
+
+// Stop stops the Endpoint.
 func (e *Endpoint) Stop() {
 	e.logger.Info("stopping syncer endpoint")
 	e.cancel()
@@ -221,12 +223,15 @@ func (e *Endpoint) Running() bool {
 	return e.server != nil || e.client != nil
 }
 
+// ClientUpdate sends any changes made by the client to the server
 func (e *Endpoint) ClientUpdate() {
 	if e.client != nil {
 		e.client.Changes()
 	}
 }
 
+// randomInt returns a random integer between l and h, inclusive.
+// If random generation fails, it returns the middle of the low/high.
 func randomInt(l, h int) int {
 	r, err := rand.Int(rand.Reader, big.NewInt(int64(h-l)))
 	if err != nil {
