@@ -23,54 +23,33 @@ func NewObjects(v any, oo ...*Object) []*Object {
 
 //nolint:funlen
 func NewObject(v any) *Object {
-	switch vv := v.(type) {
-	case string:
-		return &Object{String_: &vv}
-	case *string:
-		return &Object{String_: v.(*string)}
-	case int:
-		vvv := int64(vv)
-		return &Object{Int64: &vvv}
-	case int8:
-		vvv := int64(vv)
-		return &Object{Int64: &vvv}
-	case int16:
-		vvv := int64(vv)
-		return &Object{Int64: &vvv}
-	case int32:
-		vvv := int64(vv)
-		return &Object{Int64: &vvv}
-	case int64:
-		return &Object{Int64: &vv}
-	case uint:
-		vvv := uint64(vv)
-		return &Object{Uint64: &vvv}
-	case uint8:
-		vvv := uint64(vv)
-		return &Object{Uint64: &vvv}
-	case uint16:
-		vvv := uint64(vv)
-		return &Object{Uint64: &vvv}
-	case uint32:
-		vvv := uint64(vv)
-		return &Object{Uint64: &vvv}
-	case uint64:
-		return &Object{Uint64: &vv}
-	case float32:
-		return &Object{Float32: &vv}
-	case float64:
-		return &Object{Float64: &vv}
-	case bool:
-		return &Object{Bool: &vv}
-	case []byte:
-		return &Object{Bytes: vv}
-	case Object:
-		return &vv
-	case *Object:
-		return vv
+	va := reflect.Indirect(reflect.ValueOf(v))
+	if !va.IsValid() {
+		return nil
 	}
 
-	return nil
+	// TODO: Should panic if is not a valid type for NewObject
+	var o Object
+	switch va.Type().Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		o.Int64 = MakePtr(va.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		o.Uint64 = MakePtr(va.Uint())
+	case reflect.Float32:
+		o.Float32 = MakePtr(float32(va.Float()))
+	case reflect.Float64:
+		o.Float64 = MakePtr(va.Float())
+	case reflect.String:
+		o.String_ = MakePtr(va.String())
+	case reflect.Bool:
+		o.Bool = MakePtr(va.Bool())
+	case reflect.Slice:
+		if va.Type().Elem().Kind() == reflect.Uint8 {
+			o.Bytes = va.Bytes()
+		}
+	}
+
+	return &o
 }
 
 func (o *Object) SetValue(va reflect.Value) error {
