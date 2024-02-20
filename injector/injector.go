@@ -127,6 +127,12 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 		// panic if the key type is not supported
 		panic("I don't know what I'm doing here")
 	}
+	// iKey = iKey.Convert(keyType)
+
+	newK := reflect.New(keyType).Elem()
+	newK.Set(iKey.Convert(keyType))
+
+	iKey = newK
 
 	// create a variable to hold the indexed value
 	var iValue reflect.Value
@@ -183,6 +189,7 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 		// map values obtained by reflect cannot be set since they are not addressable so we need to get the current
 		// value and set a new value to the current value then modify said value and then assign it to the map
 		iValue = reflect.New(va.Type().Elem()).Elem()
+
 		// get the current value if it exits in the map
 		currValue := va.MapIndex(iKey)
 		// copy the current value to the iValue so we can modify
@@ -190,8 +197,12 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 			iValue.Set(currValue)
 		}
 		if iValue.Kind() == reflect.Interface {
+			if !currValue.IsValid() {
+				panic("cannot create a interface object with the entry given")
+			}
 			iValue = iValue.Elem()
 		}
+
 		// add the indexed value based on the advanced control entry
 		err := add(iValue, ctrl.Advance())
 		// return an error if one occurs
