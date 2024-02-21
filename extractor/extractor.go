@@ -13,6 +13,10 @@ type Extractor struct {
 	mut     *sync.Mutex
 }
 
+type mapKey interface {
+	int | ~string
+}
+
 var (
 	ErrNotPointer         = errors.New("data is not a pointer")
 	ErrDataStructMisMatch = errors.New("data structs do not match")
@@ -41,6 +45,26 @@ func New(data any) (*Extractor, error) {
 		history: make([]*control.Diff, 0, historySize),
 		mut:     new(sync.Mutex),
 	}, nil
+}
+
+func (ext *Extractor) addHistory(head *control.Diff) {
+	// if length of history equal to capacity drop first item and move everything down one
+	// if len(ext.history) == cap(ext.history) {
+	//     ext.history = ext.history[1:]
+	// }
+	// ext.history = append(ext.history, head)
+
+	if len(head.GetChildren()) == 0 {
+		return
+	}
+	if len(ext.history) == cap(ext.history) {
+		for i := 0; i < len(ext.history)-1; i++ {
+			ext.history[i] = ext.history[i+1]
+		}
+		ext.history[len(ext.history)-1] = head
+	} else {
+		ext.history = append(ext.history, head)
+	}
 }
 
 // Reset resets the data to its initial state.
@@ -247,7 +271,7 @@ func extractBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName stri
 	}
 	return nil
 }
-func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflect.Value, keyName string, index T) []*control.Diff {
+func extractIndexBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName string, index any) []*control.Diff {
 	switch newValue.Kind() {
 	case reflect.Struct:
 		child := extractObject(newValue, oldValue, keyName)
@@ -303,7 +327,7 @@ func extractIndexBuiltIn[T int | string](newValue reflect.Value, oldValue reflec
 	return nil
 }
 
-func deleteIndexBuiltIn[T int | string](keyName string, index T) *control.Diff {
+func deleteIndexBuiltIn(keyName string, index any) *control.Diff {
 	return control.NewDelDiff(&control.Key{
 		Key:   keyName,
 		Index: control.NewObjects(index),
@@ -381,7 +405,7 @@ func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, key
 		newMapIndexValue = reflect.Indirect(newMapIndexValue)
 		oldMapIndexValue = reflect.Indirect(oldMapIndexValue)
 
-		childs := extractIndexBuiltIn(newMapIndexValue, oldMapIndexValue, keyName, makeString(k))
+		childs := extractIndexBuiltIn(newMapIndexValue, oldMapIndexValue, keyName, k.Interface())
 		if len(childs) > 0 {
 			children = append(children, childs...)
 		}
@@ -405,6 +429,31 @@ func indirect(newValue, oldValue reflect.Value) (reflect.Value, reflect.Value) {
 		oldValue = oldValue.Elem()
 	}
 	return newValue, oldValue
+}
+
+func equal(n, o reflect.Value) bool {
+	if n.Kind() != o.Kind() {
+		return false
+	}
+	switch n.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return n.Int() == o.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return n.Uint() == o.Uint()
+	case reflect.String:
+		newS := n.String()
+		oldS := o.String()
+		return newS == oldS
+		// return n.String() == o.String()
+	case reflect.Bool:
+		return n.Bool() == o.Bool()
+	case reflect.Float32, reflect.Float64:
+		return n.Float() == o.Float()
+	case reflect.Complex64, reflect.Complex128:
+		return n.Complex() == o.Complex()
+	default:
+		return false
+	}
 }
 
 func copyData[T any](data T) T {

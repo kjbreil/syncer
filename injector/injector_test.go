@@ -25,7 +25,14 @@ type TestStruct struct {
 	IP             net.IP
 }
 type TestSub struct {
-	Sub2 string
+	S string
+}
+type TestInterface interface {
+	String() string
+}
+
+func (t *TestSub) String() string {
+	return t.S
 }
 
 type TestSub2 struct {
@@ -37,26 +44,42 @@ type SD struct {
 	Data string
 }
 type TestStruct2 struct {
-	Reservations map[string]Reservation4
+	SD
 }
-type Reservation4 struct {
-	IP       net.IP           `json:"IP,omitempty"`
-	MAC      net.HardwareAddr `json:"MAC,omitempty"`
-	Hostname string           `json:"Hostname,omitempty"`
-}
+
+type Tool int
+
+const (
+	ToolDns Tool = iota
+	ToolDhcp
+)
 
 func TestInjector_AddS(t *testing.T) {
 	ts := TestStruct2{
-
-		// Reservations: map[string]Reservation4{
-		// 	"sn": {
-		// 		IP: net.ParseIP("192.168.1.1"),
-		// 	},
-		// },
+		SD{
+			Name: "Test",
+		},
 	}
 	inj, err := New(&ts)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	entries := []*control.Entry{
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct2",
+				},
+				{
+					Key: "SD",
+				},
+				{
+					Key: "Name",
+				},
+			},
+			Value: control.NewObject("oneone"),
+		},
 	}
 
 	// entries := []*control.Entry{
@@ -66,36 +89,18 @@ func TestInjector_AddS(t *testing.T) {
 	// 				Key: "TestStruct2",
 	// 			},
 	// 			{
-	// 				Key:   "SliceStruct",
+	// 				Key:   "Reservations",
+	// 				Index: control.NewObjects("sn"),
+	// 			},
+	//
+	// 			{
+	// 				Key:   "IP",
 	// 				Index: control.NewObjects(0),
 	// 			},
-	// 			{
-	// 				Key: "Name",
-	// 			},
 	// 		},
-	// 		Value: control.NewObject("oneone"),
+	// 		Value: control.NewObject(uint8(255)),
 	// 	},
 	// }
-
-	entries := []*control.Entry{
-		{
-			Key: []*control.Key{
-				{
-					Key: "TestStruct2",
-				},
-				{
-					Key:   "Reservations",
-					Index: control.NewObjects("sn"),
-				},
-
-				{
-					Key:   "IP",
-					Index: control.NewObjects(0),
-				},
-			},
-			Value: control.NewObject(uint8(255)),
-		},
-	}
 	for _, e := range entries {
 
 		err = inj.Add(e)

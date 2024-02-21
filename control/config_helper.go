@@ -49,6 +49,13 @@ func NewObject(v any) *Object {
 		}
 	}
 
+	switch vv := v.(type) {
+	case Object:
+		return &vv
+	case *Object:
+		return vv
+	}
+
 	return &o
 }
 

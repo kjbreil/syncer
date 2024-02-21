@@ -46,10 +46,12 @@ func (e *Entry) Struct() string {
 	sb.WriteString("{\n\tKey: []*control.Key{\n")
 	for _, k := range e.GetKey() {
 		key := k.GetKey()
-		index := Objects(k.GetIndex()).Struct()
+		indexObject := Objects(k.GetIndex())
 		sb.WriteString("\t\t{\n")
 		sb.WriteString(fmt.Sprintf("\t\t\tKey: \"%s\",\n", key))
-		sb.WriteString(fmt.Sprintf("\t\t\tIndex: %s,\n", index))
+		if len(indexObject) > 0 {
+			sb.WriteString(fmt.Sprintf("\t\t\tIndex: %s,\n", indexObject.Struct()))
+		}
 		sb.WriteString("\t\t},\n")
 	}
 	sb.WriteString("\t},\n")
@@ -69,23 +71,23 @@ func (o *Object) Struct() string {
 		return ""
 	}
 	var sb strings.Builder
-	sb.WriteString("&control.Object{")
+	sb.WriteString("control.NewObject(")
 	if o.String_ != nil {
-		sb.WriteString(fmt.Sprintf("String_: control.MakePtr(\"%s\")", o.GetString_()))
+		sb.WriteString(fmt.Sprintf("control.MakePtr(\"%s\")", o.GetString_()))
 	} else if o.Int64 != nil {
-		sb.WriteString(fmt.Sprintf("Int64: control.MakePtr(strconv.FormatInt(%d, 10))", o.GetInt64()))
+		sb.WriteString(fmt.Sprintf("control.MakePtr(int64(%d))", o.GetInt64()))
 	} else if o.Uint64 != nil {
-		sb.WriteString(fmt.Sprintf("Uint64: control.MakePtr(strconv.FormatUint(%d, 10))", o.GetUint64()))
+		sb.WriteString(fmt.Sprintf("control.MakePtr(uint64(%d))", o.GetUint64()))
 	} else if o.Float32 != nil {
-		sb.WriteString(fmt.Sprintf("Float32: control.MakePtr(strconv.FormatFloat(float64(%f), 'f', -1, 32))", o.GetFloat32()))
+		sb.WriteString(fmt.Sprintf("control.MakePtr(float32(%f))", o.GetFloat32()))
 	} else if o.Float64 != nil {
-		sb.WriteString(fmt.Sprintf("Float64: control.MakePtr(strconv.FormatFloat(%f, 'f', -1, 64))", o.GetFloat64()))
+		sb.WriteString(fmt.Sprintf("control.MakePtr(float64(%f))", o.GetFloat64()))
 	} else if o.Bool != nil {
-		sb.WriteString(fmt.Sprintf("Bool: control.MakePtr(strconv.FormatBool(%t))", o.GetBool()))
+		sb.WriteString(fmt.Sprintf("control.MakePtr(%t)", o.GetBool()))
 	} else if o.Bytes != nil {
-		sb.WriteString(fmt.Sprintf("Bytes: []byte(hex.EncodeToString(%v))", o.GetBytes()))
+		sb.WriteString(fmt.Sprintf("[]byte(%v)", o.GetBytes()))
 	}
-	sb.WriteString("}")
+	sb.WriteString(")")
 	return sb.String()
 }
 
@@ -106,6 +108,7 @@ func (e *Entry) Equals(other *Entry) bool {
 		if k.GetKey() != other.GetKey()[i].GetKey() {
 			return false
 		}
+
 		if !Objects(k.GetIndex()).Equals(other.GetKey()[i].GetIndex()) {
 			return false
 		}
