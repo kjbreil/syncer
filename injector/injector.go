@@ -219,15 +219,15 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 	}
 
 	// check if the indexed key is zero
-	if iKey.IsZero() {
+	if !iKey.IsValid() {
 		// return an error if the indexed key is zero
-		return errors.New("iKey is zero")
+		return errors.New("iKey is not valid")
 	}
 
 	// check if the indexed value is zero
-	if iValue.IsZero() {
+	if !iValue.IsValid() {
 		// return an error if the indexed value is zero
-		return errors.New("iValue is zero")
+		return errors.New("iValue is not valid")
 	}
 	// if the map is empty, create a new map with the correct key and value types
 	if va.Len() == 0 {
