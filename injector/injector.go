@@ -167,7 +167,7 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 		}
 		// if the key is indexed, advance the control entry
 		if len(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()) > 1 {
-			ctrl.Key[0].Index = ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()[1:]
+			ctrl.Key[ctrl.GetKeyI()].Index = ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()[1:]
 		}
 		// set the indexed value based on the advanced control entry
 		err := setValue(iValue, ctrl)
