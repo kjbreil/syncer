@@ -109,6 +109,10 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 	// get the key and value types
 	keyType := va.Type().Key()
 	valueType := va.Type().Elem().Kind()
+	// if valueType is pointer we need to get the kind of the actual valueType
+	if valueType == reflect.Ptr {
+		valueType = va.Type().Elem().Elem().Kind()
+	}
 
 	// create a variable to hold the indexed key
 	var iKey reflect.Value
