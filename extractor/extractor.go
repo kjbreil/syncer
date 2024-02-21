@@ -411,7 +411,9 @@ func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, key
 		}
 
 		if newUpperType.Elem().Kind() == reflect.Ptr {
-			oldValue.SetMapIndex(k, newMapIndexValue.Addr())
+			newPtrValue := reflect.New(newMapIndexValue.Type()).Elem()
+			newPtrValue.Set(newMapIndexValue)
+			oldValue.SetMapIndex(k, newPtrValue.Addr())
 		} else {
 			oldValue.SetMapIndex(k, newMapIndexValue)
 		}
