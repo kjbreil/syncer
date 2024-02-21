@@ -410,14 +410,16 @@ func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, key
 			children = append(children, childs...)
 		}
 
-		if newUpperType.Elem().Kind() == reflect.Ptr {
-			newPtrValue := reflect.New(newMapIndexValue.Type()).Elem()
-			newPtrValue.Set(newMapIndexValue)
-			oldValue.SetMapIndex(k, newPtrValue.Addr())
-		} else {
-			oldValue.SetMapIndex(k, newMapIndexValue)
+		if len(childs) > 0 {
+			if newUpperType.Elem().Kind() == reflect.Ptr {
+				newPtrValue := reflect.New(newMapIndexValue.Type()).Elem()
+				newPtrValue.Set(newMapIndexValue)
+				oldValue.SetMapIndex(k, newPtrValue.Addr())
+			} else {
+				newOldValue := copyValue(newMapIndexValue)
+				oldValue.SetMapIndex(k, newOldValue)
+			}
 		}
-
 	}
 
 	return children

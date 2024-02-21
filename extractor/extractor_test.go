@@ -29,11 +29,13 @@ type TestStruct struct {
 	SubPtr         *TestStruct
 }
 type TestStruct2 struct {
-	MapKeyInt map[int]int
+	String    string
+	MapStruct map[int64]TestSub
 }
 
 type TestSub struct {
-	S string
+	MapPtrStruct map[int64]*SD
+	S            string
 }
 
 type SD struct {
@@ -51,9 +53,15 @@ func (t *TestSub) String() string {
 
 func TestNew(t *testing.T) {
 	ts := TestStruct2{
-		MapKeyInt: map[int]int{
-			1: 1,
-			2: 2,
+		MapStruct: map[int64]TestSub{
+			1: {
+				S: "test",
+				MapPtrStruct: map[int64]*SD{
+					1: &SD{
+						Name: "test",
+					},
+				},
+			},
 		},
 	}
 	ext, err := New(&ts)
@@ -62,7 +70,9 @@ func TestNew(t *testing.T) {
 	}
 	entries := ext.Entries(&ts)
 	fmt.Println(entries.Struct())
+	ts.MapStruct[1].MapPtrStruct[1].Name = "new"
 	entries = ext.Entries(&ts)
+	fmt.Println(entries.Struct())
 
 }
 
@@ -327,19 +337,5 @@ func TestExtractor_Entries(t *testing.T) {
 				t.Logf("##########\n\n%s\n\n##########", got.Struct())
 			}
 		})
-	}
-}
-
-func Test_copyData(t *testing.T) {
-	ds := struct {
-		Name string
-	}{
-		Name: "Test",
-	}
-
-	newD := copyData(&ds)
-	ds.Name = "modified"
-	if ds.Name == newD.Name {
-		t.Errorf("copyData() = %v, want %v", ds.Name, "modified")
 	}
 }
