@@ -3,6 +3,7 @@ package extractor
 import (
 	"errors"
 	"github.com/kjbreil/syncer/control"
+	"github.com/kjbreil/syncer/helpers/deepcopy"
 	"reflect"
 	"sync"
 )
@@ -11,10 +12,6 @@ type Extractor struct {
 	data    any
 	history []*control.Diff
 	mut     *sync.Mutex
-}
-
-type mapKey interface {
-	int | ~string
 }
 
 var (
@@ -416,23 +413,13 @@ func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, key
 				newPtrValue.Set(newMapIndexValue)
 				oldValue.SetMapIndex(k, newPtrValue.Addr())
 			} else {
-				newOldValue := copyValue(newMapIndexValue)
+				newOldValue := deepcopy.DeepCopy(newMapIndexValue)
 				oldValue.SetMapIndex(k, newOldValue)
 			}
 		}
 	}
 
 	return children
-}
-
-func indirect(newValue, oldValue reflect.Value) (reflect.Value, reflect.Value) {
-	for newValue.Kind() == reflect.Ptr {
-		newValue = newValue.Elem()
-	}
-	for oldValue.Kind() == reflect.Ptr {
-		oldValue = oldValue.Elem()
-	}
-	return newValue, oldValue
 }
 
 func equal(n, o reflect.Value) bool {

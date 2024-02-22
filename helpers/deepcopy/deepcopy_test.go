@@ -1,4 +1,4 @@
-package extractor
+package deepcopy
 
 import (
 	"fmt"
@@ -98,11 +98,41 @@ func Test_copyValue(t *testing.T) {
 				return reflect.DeepEqual(src, dst), ""
 			},
 		},
+		{
+			name: "unexported type",
+			dst:  nil,
+			src: struct {
+				String     string
+				unexported string
+			}{
+				String:     "String",
+				unexported: "unexported",
+			},
+			wantFn: func(src, dst any) (bool, string) {
+				s := src.(struct {
+					String     string
+					unexported string
+				})
+				d := dst.(struct {
+					String     string
+					unexported string
+				})
+				if s.String != d.String {
+					return false, fmt.Sprintf("s String: %v != d String: %v", s.String, d.String)
+				}
+
+				if s.unexported == d.unexported {
+					return false, fmt.Sprintf("s unexported: %v == d unexported: %v", s.unexported, d.unexported)
+				}
+
+				return true, ""
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srcV := reflect.ValueOf(tt.src)
-			tt.dst = copyValue(srcV).Interface()
+			tt.dst = DeepCopy(srcV).Interface()
 			if ok, errS := tt.wantFn(tt.src, tt.dst); !ok {
 				t.Errorf(errS)
 			}
