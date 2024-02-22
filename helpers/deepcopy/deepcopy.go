@@ -4,12 +4,12 @@ import (
 	"reflect"
 )
 
-type copier func(src reflect.Value) (dst reflect.Value)
+type copyFn func(dst, src reflect.Value)
 
-var copiers map[reflect.Kind]copier
+var copyFuncs map[reflect.Kind]copyFn
 
 func init() {
-	copiers = map[reflect.Kind]copier{
+	copyFuncs = map[reflect.Kind]copyFn{
 		reflect.Bool:       deepCopyPrimitive,
 		reflect.Int:        deepCopyPrimitive,
 		reflect.Int8:       deepCopyPrimitive,
@@ -57,106 +57,76 @@ func DeepCopy(src reflect.Value) reflect.Value {
 	return deepCopy(src)
 }
 
+// Any takes a value of any type and returns it as the same type after a deep copy.
+// This function is useful when you need to work with a value of an unknown type
+// and want to ensure that the value is copied before making any changes to it.
+func Any[T any](src T) T {
+	srcV := reflect.ValueOf(src)
+	dst := deepCopy(srcV)
+	return dst.Interface().(T)
+}
+
 func deepCopy(src reflect.Value) reflect.Value {
 	dst, valid := newDst(src)
 	if !valid {
 		return dst
 	}
 
-	if c, ok := copiers[src.Kind()]; ok {
-		dst.Set(c(src))
+	if c, ok := copyFuncs[src.Kind()]; ok {
+		c(dst, src)
 	}
 
 	// Return the destination value.
 	return dst
 }
 
-func deepCopyStruct(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
-
+func deepCopyStruct(dst, src reflect.Value) {
 	for i := 0; i < src.NumField(); i++ {
 		if !src.Field(i).CanInterface() || !dst.Field(i).CanSet() {
 			continue
 		}
 		dst.Field(i).Set(deepCopy(src.Field(i)))
 	}
-	return dst
+	return
 }
 
-func deepCopyInterface(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
-
+func deepCopyInterface(dst, src reflect.Value) {
 	if src.Elem().IsValid() {
 		dst.Set(deepCopy(src.Elem()))
 	}
-	return dst
 }
 
-func deepCopyPointer(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
-
+func deepCopyPointer(dst, src reflect.Value) {
 	if src.Elem().IsValid() {
 		dst.Set(deepCopy(src.Elem()).Addr())
 	}
-	return dst
 }
 
-func deepCopyMap(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
-
+func deepCopyMap(dst, src reflect.Value) {
 	dst.Set(reflect.MakeMapWithSize(src.Type(), src.Len()))
 	for _, k := range src.MapKeys() {
 		dst.SetMapIndex(k, deepCopy(src.MapIndex(k)))
 	}
-	return dst
 }
 
-func deepCopySlice(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
-
+func deepCopySlice(dst, src reflect.Value) {
 	elemType := src.Type().Elem()
 	sliceType := reflect.SliceOf(elemType)
-	dst.Set(reflect.MakeSlice(sliceType, 0, src.Len()))
+	dst.Set(reflect.MakeSlice(sliceType, src.Len(), src.Cap()))
 	for i := 0; i < src.Len(); i++ {
-		dst = reflect.Append(dst, deepCopy(src.Index(i)))
+		dst.Index(i).Set(deepCopy(src.Index(i)))
 	}
-	return dst
 }
-func deepCopyArray(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
+func deepCopyArray(dst, src reflect.Value) {
 	elemType := src.Type().Elem()
 	dst.Set(reflect.New(reflect.ArrayOf(src.Len(), elemType)))
 	for i := 0; i < src.Len(); i++ {
 		dst.Index(i).Set(deepCopy(src.Index(i)))
 	}
-	return dst
 }
 
-func deepCopyPrimitive(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
+func deepCopyPrimitive(dst, src reflect.Value) {
 	dst.Set(src)
-	return dst
 }
 
 func newDst(src reflect.Value) (reflect.Value, bool) {
