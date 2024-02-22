@@ -36,7 +36,7 @@ func init() {
 	}
 }
 
-// DeepCopy copies the value of a reflect.Value.
+// DeepCopy copies the value of a reflect.Value returning a new reflect.Value
 //
 // The copied value is a deep copy, meaning that all nested values (e.g. pointers,
 // slices, and maps) are copied as well.
@@ -67,10 +67,7 @@ func Any[T any](src T) T {
 }
 
 func deepCopy(src reflect.Value) reflect.Value {
-	dst, valid := newDst(src)
-	if !valid {
-		return dst
-	}
+	dst := reflect.Indirect(reflect.New(src.Type()))
 
 	if c, ok := copyFuncs[src.Kind()]; ok {
 		c(dst, src)
@@ -103,6 +100,9 @@ func deepCopyPointer(dst, src reflect.Value) {
 }
 
 func deepCopyMap(dst, src reflect.Value) {
+	if src.IsNil() {
+		return
+	}
 	dst.Set(reflect.MakeMapWithSize(src.Type(), src.Len()))
 	for _, k := range src.MapKeys() {
 		dst.SetMapIndex(k, deepCopy(src.MapIndex(k)))
@@ -110,6 +110,9 @@ func deepCopyMap(dst, src reflect.Value) {
 }
 
 func deepCopySlice(dst, src reflect.Value) {
+	if src.IsNil() {
+		return
+	}
 	elemType := src.Type().Elem()
 	sliceType := reflect.SliceOf(elemType)
 	dst.Set(reflect.MakeSlice(sliceType, src.Len(), src.Cap()))
@@ -118,8 +121,8 @@ func deepCopySlice(dst, src reflect.Value) {
 	}
 }
 func deepCopyArray(dst, src reflect.Value) {
-	elemType := src.Type().Elem()
-	dst.Set(reflect.New(reflect.ArrayOf(src.Len(), elemType)))
+	elemType := src.Type()
+	dst.Set(reflect.New(reflect.ArrayOf(src.Len(), elemType.Elem())).Elem())
 	for i := 0; i < src.Len(); i++ {
 		dst.Index(i).Set(deepCopy(src.Index(i)))
 	}
@@ -127,11 +130,4 @@ func deepCopyArray(dst, src reflect.Value) {
 
 func deepCopyPrimitive(dst, src reflect.Value) {
 	dst.Set(src)
-}
-
-func newDst(src reflect.Value) (reflect.Value, bool) {
-	// Create a new destination value that is a copy of the source value.
-	dst := reflect.Indirect(reflect.New(src.Type()))
-
-	return dst, dst.CanSet() || src.CanInterface()
 }
