@@ -1,7 +1,7 @@
 package extractor
 
 import (
-	"fmt"
+	"github.com/kjbreil/syncer/helpers/equal"
 	"reflect"
 	"testing"
 
@@ -16,21 +16,27 @@ type TestStruct struct {
 	SliceStruct    []SD
 	SlicePtr       []*int
 	SlicePtrStruct []*SD
-	SliceSlice     [][]int
 	SliceInterface []TestInterface
+	SliceSlice     [][]int
+	SliceMap       []map[string]int
+	Array          [10]int
+	ArrayStruct    [10]SD
+	ArrayPtr       [10]*int
+	ArrayPtrStruct [10]*SD
+	ArrayInterface [10]TestInterface
+	ArrayArray     [10][10]int
 	Map            map[string]int
 	MapKeyInt      map[int]int
 	MapStruct      map[string]TestStruct
 	MapPtr         map[string]*int
-	MapMap         map[string]map[string]int
 	MapPtrStruct   map[string]*TestStruct
 	MapInterface   map[string]TestInterface
-	Sub            TestSub
-	SubPtr         *TestStruct
-}
-type TestStruct2 struct {
-	String    string
-	MapStruct map[int64]TestSub
+	MapMap         map[string]map[string]int
+	MapSlice       map[string][]int
+	SubStruct      TestSub
+	SubStructPtr   *TestStruct
+	unexported     string
+	Function       func()
 }
 
 type TestSub struct {
@@ -47,68 +53,12 @@ type TestInterface interface {
 	String() string
 }
 
-func (t *TestSub) String() string {
+type TestInterfaceImpl struct {
+	S string
+}
+
+func (t *TestInterfaceImpl) String() string {
 	return t.S
-}
-
-func TestNew(t *testing.T) {
-	ts := TestStruct2{
-		MapStruct: map[int64]TestSub{
-			1: {
-				S: "test",
-				MapPtrStruct: map[int64]*SD{
-					1: &SD{
-						Name: "test",
-					},
-				},
-			},
-		},
-	}
-	ext, err := New(&ts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	entries := ext.Entries(&ts)
-	fmt.Println(entries.Struct())
-	ts.MapStruct[1].MapPtrStruct[1].Name = "new"
-	entries = ext.Entries(&ts)
-	fmt.Println(entries.Struct())
-
-}
-
-func makeBaseTestStruct() TestStruct {
-	return TestStruct{
-		String:    "Base String",
-		Int:       1,
-		Interface: &TestSub{S: "TestInterface"},
-		Slice:     []int{1, 2, 3},
-		SliceStruct: []SD{
-			{Name: "Base SliceStruct Name 1", Data: "Base SliceStruct Data 1"},
-			{Name: "Base SliceStruct Name 2", Data: "Base SliceStruct Data 2"},
-		},
-		SlicePtr: []*int{control.MakePtr(1), control.MakePtr(2)},
-		SlicePtrStruct: []*SD{
-			{Name: "Base SlicePtrStruct Name 1", Data: "Base SlicePtrStruct Data 1"},
-			{Name: "Base SlicePtrStruct Name 2", Data: "Base SlicePtrStruct Data 2"},
-		},
-		Map: map[string]int{
-			"Base First":  1,
-			"Base Second": 2,
-		},
-		MapStruct: map[string]TestStruct{
-			"Base First": {String: "Base First Test Struct"},
-		},
-		MapPtr: map[string]*int{
-			"Base First": control.MakePtr(1),
-		},
-		MapPtrStruct: map[string]*TestStruct{
-			"Base First": {String: "Base First Test Struct"},
-		},
-		Sub: TestSub{
-			S: "Base Test Sub",
-		},
-		SubPtr: &TestStruct{String: "Base Sub Test Struct"},
-	}
 }
 
 func makeChangeTestStruct() TestStruct {
@@ -138,82 +88,16 @@ func makeChangeTestStruct() TestStruct {
 		MapPtrStruct: map[string]*TestStruct{
 			"Change First": {String: "Change First Test Struct"},
 		},
-		Sub: TestSub{
+		SubStruct: TestSub{
 			S: "Change Test Sub",
 		},
-		SubPtr: &TestStruct{String: "Change Sub Test Struct"},
-	}
-}
-
-func Test_equal(t *testing.T) {
-	type args struct {
-		newValue reflect.Value
-		oldValue reflect.Value
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "",
-			args: args{
-				newValue: reflect.ValueOf(1),
-				oldValue: reflect.ValueOf(1),
-			},
-			want: true,
-		},
-		{
-			name: "",
-			args: args{
-				newValue: reflect.ValueOf(1),
-				oldValue: reflect.ValueOf(2),
-			},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := equal(tt.args.newValue, tt.args.oldValue); got != tt.want {
-				t.Errorf("equal() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func BenchmarkExtractor_Diff(b *testing.B) {
-	cs := makeChangeTestStruct()
-	ts := makeBaseTestStruct()
-
-	sliceEntries := 100000
-	ts.Slice = make([]int, 0, sliceEntries)
-	for ii := 0; ii < sliceEntries; ii++ {
-		ts.Slice = append(ts.Slice, ii)
-	}
-	ext, err := New(ts)
-	if err != nil {
-		b.Fatal(err)
-	}
-	for i := 0; i < b.N; i++ {
-		_ = ext.Entries(&ts)
-		_ = ext.Entries(&cs)
-	}
-}
-
-func Benchmark_equal1(b *testing.B) {
-	var o, n reflect.Value
-	for i := 0; i < b.N; i++ {
-		o, n = reflect.ValueOf(i), reflect.ValueOf(i)
-		equal(o, n)
+		SubStructPtr: &TestStruct{String: "Change Sub Test Struct"},
 	}
 }
 
 func TestExtractor_Entries(t *testing.T) {
 
 	ts := makeBaseTestStruct()
-	// ts := TestStruct{
-	// 	String: "test",
-	// }
 	ext, _ := New(ts)
 
 	tests := []struct {
@@ -304,9 +188,9 @@ func TestExtractor_Entries(t *testing.T) {
 			},
 		},
 		{
-			name: "remove pointer struct",
+			name: "make slice nil",
 			modFn: func() {
-				ts.SubPtr = nil
+				ts.Slice = nil
 			},
 			want: []*control.Entry{
 				{
@@ -315,7 +199,85 @@ func TestExtractor_Entries(t *testing.T) {
 							Key: "TestStruct",
 						},
 						{
-							Key: "SubPtr",
+							Key: "Slice",
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "empty slice",
+			modFn: func() {
+				ts.Slice = []int{}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Slice",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "remove from map",
+			modFn: func() {
+				delete(ts.Map, "Base First")
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Map",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "make map nil",
+			modFn: func() {
+				ts.Map = nil
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Map",
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "remove pointer struct",
+			modFn: func() {
+				ts.SubStructPtr = nil
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "SubStructPtr",
 						},
 					},
 					Remove: true,
@@ -337,5 +299,88 @@ func TestExtractor_Entries(t *testing.T) {
 				t.Logf("##########\n\n%s\n\n##########", got.Struct())
 			}
 		})
+	}
+}
+
+func BenchmarkExtractor_Diff(b *testing.B) {
+	cs := makeChangeTestStruct()
+	ts := makeBaseTestStruct()
+
+	sliceEntries := 100000
+	ts.Slice = make([]int, 0, sliceEntries)
+	for ii := 0; ii < sliceEntries; ii++ {
+		ts.Slice = append(ts.Slice, ii)
+	}
+	ext, err := New(ts)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < b.N; i++ {
+		_ = ext.Entries(&ts)
+		_ = ext.Entries(&cs)
+	}
+}
+
+func Benchmark_equal1(b *testing.B) {
+	var o, n reflect.Value
+	for i := 0; i < b.N; i++ {
+		o, n = reflect.ValueOf(i), reflect.ValueOf(i)
+		equal.Equal(o, n)
+	}
+}
+
+func makeBaseTestStruct() TestStruct {
+	return TestStruct{
+		String:    "Base String",
+		Int:       1,
+		Interface: &TestInterfaceImpl{S: "TestInterface"},
+		Slice:     []int{1, 2, 3},
+		SliceStruct: []SD{
+			{Name: "Base SliceStruct Name 1", Data: "Base SliceStruct Data 1"},
+			{Name: "Base SliceStruct Name 2", Data: "Base SliceStruct Data 2"},
+		},
+		SlicePtr: []*int{control.MakePtr(1), control.MakePtr(2)},
+		SlicePtrStruct: []*SD{
+			{Name: "Base SlicePtrStruct Name 1", Data: "Base SlicePtrStruct Data 1"},
+			{Name: "Base SlicePtrStruct Name 2", Data: "Base SlicePtrStruct Data 2"},
+		},
+		SliceInterface: []TestInterface{&TestInterfaceImpl{S: "TestInterface"}},
+		SliceSlice:     [][]int{{1}},
+		Array:          [10]int{1},
+		ArrayStruct: [10]SD{
+			{Name: "Base SliceStruct Name 1", Data: "Base SliceStruct Data 1"},
+			{Name: "Base SliceStruct Name 2", Data: "Base SliceStruct Data 2"},
+		},
+		ArrayPtr: [10]*int{control.MakePtr(1), control.MakePtr(2)},
+		ArrayPtrStruct: [10]*SD{
+			{Name: "Base SlicePtrStruct Name 1", Data: "Base SlicePtrStruct Data 1"},
+			{Name: "Base SlicePtrStruct Name 2", Data: "Base SlicePtrStruct Data 2"},
+		},
+		ArrayInterface: [10]TestInterface{&TestInterfaceImpl{S: "TestInterface"}},
+		ArrayArray:     [10][10]int{{1, 2}, {3, 4}},
+		Map: map[string]int{
+			"Base First":  1,
+			"Base Second": 2,
+		},
+		MapStruct: map[string]TestStruct{
+			"Base First": {String: "Base First Test Struct"},
+		},
+		MapPtr: map[string]*int{
+			"Base First": control.MakePtr(1),
+		},
+		MapPtrStruct: map[string]*TestStruct{
+			"Base First": {String: "Base First Test Struct"},
+		},
+		MapInterface: map[string]TestInterface{"one": &TestInterfaceImpl{S: "TestInterface"}},
+		MapMap:       map[string]map[string]int{"top": {"second": 3}},
+		MapSlice:     map[string][]int{"one": {1, 2}},
+		SubStruct: TestSub{
+			S: "Base Test Sub",
+		},
+		SubStructPtr: &TestStruct{String: "Base Sub Test Struct"},
+		unexported:   "not exported",
+		Function: func() {
+
+		},
 	}
 }

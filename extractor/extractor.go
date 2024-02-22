@@ -2,8 +2,10 @@ package extractor
 
 import (
 	"errors"
+	"fmt"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/helpers/deepcopy"
+	"github.com/kjbreil/syncer/helpers/equal"
 	"reflect"
 	"sync"
 )
@@ -45,15 +47,10 @@ func New(data any) (*Extractor, error) {
 }
 
 func (ext *Extractor) addHistory(head *control.Diff) {
-	// if length of history equal to capacity drop first item and move everything down one
-	// if len(ext.history) == cap(ext.history) {
-	//     ext.history = ext.history[1:]
-	// }
-	// ext.history = append(ext.history, head)
-
 	if len(head.GetChildren()) == 0 {
 		return
 	}
+	// if length of history Equal to capacity drop first item and move everything down one
 	if len(ext.history) == cap(ext.history) {
 		for i := 0; i < len(ext.history)-1; i++ {
 			ext.history[i] = ext.history[i+1]
@@ -95,15 +92,15 @@ func (ext *Extractor) Entries(data any) control.Entries {
 	return h.Entries()
 }
 
-func (ext *Extractor) Diff(currData any) (*control.Diff, error) {
+func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 	// force single threaded access
 	ext.mut.Lock()
 	defer ext.mut.Unlock()
 
-	// copy the current data as a point in time
-	data := copyData(currData)
+	// deep copy the current data as a point in time
+	pitData := deepcopy.Any(data)
 
-	newValue := reflect.ValueOf(data)
+	newValue := reflect.ValueOf(pitData)
 	if newValue.Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
 	}
@@ -112,8 +109,12 @@ func (ext *Extractor) Diff(currData any) (*control.Diff, error) {
 	oldValue := reflect.Indirect(reflect.ValueOf(ext.data))
 
 	head := extractObject(newValue, oldValue, newValue.Type().Name())
+	if head != nil {
+		// use the pitData for ext.data since it is already a deep copy of data
+		ext.data = pitData
+		head.Timestamp()
+	}
 
-	head.Timestamp()
 	return head, nil
 }
 
@@ -183,16 +184,14 @@ func extractObject(newValue, oldValue reflect.Value, keyName string) *control.Di
 			}
 		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-			child := extractBuiltIn(newValueField, oldValueField, newValueTypeField.Name)
+			child := extractPrimitive(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
-		case reflect.Invalid:
-		case reflect.Uintptr:
 		case reflect.Complex64, reflect.Complex128:
-		case reflect.Chan:
-		case reflect.Func:
-		case reflect.UnsafePointer:
+			panic(fmt.Sprintf("complex types not yet supported"))
+		case reflect.Invalid, reflect.Uintptr, reflect.Chan, reflect.Func, reflect.UnsafePointer:
+
 		}
 	}
 	if len(current.Children) == 0 {
@@ -251,18 +250,14 @@ func extractObjectInterface(newValue, oldValue reflect.Value, keyName string) *c
 	return child
 }
 
-func extractBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName string) *control.Diff {
-	if !equal(newValue, oldValue) {
+func extractPrimitive(newValue reflect.Value, oldValue reflect.Value, keyName string) *control.Diff {
+	if !equal.Equal(newValue, oldValue) {
 		child := control.NewDiff(&control.Key{
 			Key: keyName,
 		})
 		err := child.SetValue(reflect.Indirect(newValue))
 		if err != nil {
 			panic(err)
-		}
-
-		if oldValue.CanSet() {
-			oldValue.Set(newValue)
 		}
 		return child
 	}
@@ -306,7 +301,7 @@ func extractIndexBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName
 			return children
 		}
 	default:
-		if !equal(newValue, oldValue) {
+		if !equal.Equal(newValue, oldValue) {
 			child := control.NewDiff(&control.Key{
 				Key:   keyName,
 				Index: control.NewObjects(index),
@@ -314,9 +309,6 @@ func extractIndexBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName
 			err := child.SetValue(reflect.Indirect(newValue))
 			if err != nil {
 				panic(err)
-			}
-			if oldValue.CanSet() {
-				oldValue.Set(newValue)
 			}
 			return []*control.Diff{child}
 		}
@@ -334,11 +326,22 @@ func deleteIndexBuiltIn(keyName string, index any) *control.Diff {
 func extractSlice(newValue, oldValue reflect.Value, keyName string) []*control.Diff {
 	var children []*control.Diff
 
+	// if newValue is a slice and is null while oldValue is not null then create remove
+	if newValue.Kind() == reflect.Slice && newValue.IsNil() && !oldValue.IsNil() {
+		children = append(children, control.NewDelDiff(&control.Key{
+			Key: keyName,
+		}))
+		return children
+	}
+
+	if !oldValue.IsValid() {
+		oldValue = reflect.MakeSlice(newValue.Type(), newValue.Len(), newValue.Cap())
+	}
 	// make the old slice match the new slice
 	// oldValue is shorter, add the extra entries and just run compare
 	if oldValue.Len() < newValue.Len() {
 		// make a new slice for oldValue of capacity the newValue Slice
-		newOldSlice := reflect.MakeSlice(newValue.Type(), newValue.Len(), newValue.Len())
+		newOldSlice := reflect.MakeSlice(newValue.Type(), newValue.Len(), newValue.Cap())
 		// copy the values from the oldSlice into the newOldSlice
 		reflect.Copy(newOldSlice, oldValue)
 		// set the oldSlice to the newOldSlice
@@ -355,7 +358,7 @@ func extractSlice(newValue, oldValue reflect.Value, keyName string) []*control.D
 	for i := 0; i < newValue.Len(); i++ {
 		newIndexValue, oldIndexValue := reflect.Indirect(newValue.Index(i)), reflect.Indirect(oldValue.Index(i))
 
-		if equal(newIndexValue, oldIndexValue) {
+		if equal.Equal(newIndexValue, oldIndexValue) {
 			continue
 		}
 
@@ -365,15 +368,17 @@ func extractSlice(newValue, oldValue reflect.Value, keyName string) []*control.D
 		}
 	}
 
-	if len(children) > 0 {
-		reflect.Copy(oldValue, newValue)
-	}
-
 	return children
 }
 
 func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, keyName string) []*control.Diff {
 	var children []*control.Diff
+	if newValue.IsNil() && !oldValue.IsNil() {
+		children = append(children, control.NewDelDiff(&control.Key{
+			Key: keyName,
+		}))
+		return children
+	}
 	// indirect the values to get at the concrete values
 	oldValue = reflect.Indirect(oldValue)
 	newValue = reflect.Indirect(newValue)
@@ -389,7 +394,6 @@ func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, key
 	}
 
 	for _, k := range newValue.MapKeys() {
-		// append that value to the oldValue slice
 		newMapIndexValue := newValue.MapIndex(k)
 		oldMapIndexValue := oldValue.MapIndex(k)
 
@@ -406,45 +410,17 @@ func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, key
 		if len(childs) > 0 {
 			children = append(children, childs...)
 		}
+	}
 
-		if len(childs) > 0 {
-			if newUpperType.Elem().Kind() == reflect.Ptr {
-				newPtrValue := reflect.New(newMapIndexValue.Type()).Elem()
-				newPtrValue.Set(newMapIndexValue)
-				oldValue.SetMapIndex(k, newPtrValue.Addr())
-			} else {
-				newOldValue := deepcopy.DeepCopy(newMapIndexValue)
-				oldValue.SetMapIndex(k, newOldValue)
-			}
+	for _, k := range oldValue.MapKeys() {
+		newMapIndexValue := newValue.MapIndex(k)
+
+		if !newMapIndexValue.IsValid() {
+			children = append(children, deleteIndexBuiltIn(keyName, k.Interface()))
 		}
 	}
 
 	return children
-}
-
-func equal(n, o reflect.Value) bool {
-	if n.Kind() != o.Kind() {
-		return false
-	}
-	switch n.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return n.Int() == o.Int()
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return n.Uint() == o.Uint()
-	case reflect.String:
-		newS := n.String()
-		oldS := o.String()
-		return newS == oldS
-		// return n.String() == o.String()
-	case reflect.Bool:
-		return n.Bool() == o.Bool()
-	case reflect.Float32, reflect.Float64:
-		return n.Float() == o.Float()
-	case reflect.Complex64, reflect.Complex128:
-		return n.Complex() == o.Complex()
-	default:
-		return false
-	}
 }
 
 func copyData[T any](data T) T {
