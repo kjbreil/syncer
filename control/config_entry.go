@@ -6,8 +6,14 @@ import (
 )
 
 func (e *Entry) Advance() *Entry {
+	// if int(e.KeyI) < len(e.GetKey()) {
+	// }
 	e.KeyI++
 	return e
+}
+
+func (e *Entry) Last() bool {
+	return int(e.KeyI) == len(e.GetKey())-1
 }
 
 func (e *Entry) GetCurrIndexObjects() Objects {

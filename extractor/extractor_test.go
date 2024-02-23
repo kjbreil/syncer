@@ -262,7 +262,7 @@ func TestExtractor_Entries(t *testing.T) {
 							Key: "TestStruct",
 						},
 						{
-							Key:   "MapKeyInt",
+							Key:   "MapKeyUint",
 							Index: control.NewObjects(control.NewObject(control.MakePtr(uint64(0)))),
 						},
 					},

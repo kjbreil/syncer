@@ -160,6 +160,11 @@ func setValueMap(va reflect.Value, entry *control.Entry) error {
 
 	iKey = newK
 
+	if entry.Last() && entry.Remove {
+		va.SetMapIndex(iKey, reflect.Value{})
+		return nil
+	}
+
 	// create a variable to hold the indexed value
 	var iValue reflect.Value
 

@@ -35,25 +35,34 @@ var (
 
 // New creates a new Combined instance.
 func New(ctx context.Context, data any) (*Combined, error) {
+	if ctx == nil {
+		return nil, errors.New("context is nil")
+	}
 	if data == nil {
 		return nil, errors.New("data is nil")
 	}
 	var err error
 	c := Combined{}
 	c.ctx, c.cancel = context.WithCancel(ctx)
+
 	c.extractor, err = extractor.New(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create extractor: %w", err)
 	}
+
 	c.injector, err = injector.New(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create injector: %w", err)
 	}
+
 	c.extractorChgChan = make(chan struct{}, 1)
 	c.injectorChgChan = make(chan struct{}, 1)
+
 	c.Debounce = time.Second * 2
+
 	go c.injectorChangeDebounce()
 	go c.extractorChangeDebounce()
+
 	return &c, nil
 }
 
@@ -97,9 +106,12 @@ func (c *Combined) extractorChangeDebounce() {
 	}
 }
 
+// ExtractorChanges sets the function to be executed when the extractor configuration changes.
 func (c *Combined) ExtractorChanges(fn func() error) {
 	c.extractorChanges = fn
 }
+
+// InjectorChanges sets the function to be executed when the injector configuration changes.
 func (c *Combined) InjectorChanges(fn func() error) {
 	c.injectorChanges = fn
 }
@@ -140,4 +152,12 @@ func (c *Combined) Entries(data any) (control.Entries, error) {
 	entries := head.Entries()
 	c.extractorChgChan <- struct{}{}
 	return entries, nil
+}
+
+// Close stops the Combined instance and closes all open resources.
+func (c *Combined) Close() error {
+	c.cancel()
+	close(c.extractorChgChan)
+	close(c.injectorChgChan)
+	return nil
 }

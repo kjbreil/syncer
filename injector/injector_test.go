@@ -190,6 +190,35 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
+			name: "Remove Map Key",
+			preFn: func() {
+				ts.Map = map[string]int{"Base First": 1}
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Map",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+						},
+					},
+					Remove: true,
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.Map != nil {
+					if _, ok := ts.Map["Base First"]; ok {
+						return fmt.Errorf("ts.Map[\"Base First\"] should be nil")
+					}
+				}
+				return nil
+			},
+		},
+		{
 			name: "MapKeyBool",
 			entries: []*control.Entry{
 				{

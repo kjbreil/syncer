@@ -345,7 +345,7 @@ func extractSlice(newValue, oldValue reflect.Value, keyName string) []*control.D
 		// copy the values from the oldSlice into the newOldSlice
 		reflect.Copy(newOldSlice, oldValue)
 		// set the oldSlice to the newOldSlice
-		oldValue.Set(newOldSlice)
+		oldValue = newOldSlice
 		// if value is a pointer loop over and create a zero value entry for each element
 	}
 
