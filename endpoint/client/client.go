@@ -105,7 +105,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientNotAvailable, err))
 	}
 
-	c.combined, err = combined.New(data)
+	c.combined, err = combined.New(c.ctx, data)
 
 	if err != nil {
 		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientInjector, err))
@@ -116,6 +116,13 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 
 func (c *Client) Running() bool {
 	return c.ctx.Err() == nil
+}
+
+func (c *Client) AddExtHandler(ext func() error) {
+	c.combined.ExtractorChanges(ext)
+}
+func (c *Client) AddInjHandler(inj func() error) {
+	c.combined.InjectorChanges(inj)
 }
 
 // Init requests to init data from the server.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 	"time"
@@ -56,6 +57,7 @@ func main() {
 		Port:       port,
 		AutoUpdate: true,
 	})
+
 	if err != nil {
 		panic(err)
 	}
@@ -84,6 +86,12 @@ func main() {
 	s.endpointTwo = endpointTwo
 
 	// logInfo.SetText("this is some text", false)
+
+	s.endpointTwo.AddHandler(endpoint.InjectorChanges, func() error {
+		// s.endpointTwoData.Name = "injector changes"
+		fmt.Println("injector changes", s.endpointTwo)
+		return nil
+	})
 
 	grid := tview.NewGrid().
 		SetRows(5).

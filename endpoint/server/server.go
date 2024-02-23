@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math"
 	"net"
 	"sync"
 	"time"
@@ -59,19 +58,9 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.S
 	}
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
-	maxRetryCount := 5
-	retryCount := 0
-	for {
-		s.combined, err = combined.New(data)
-		if err == nil {
-			break
-		}
-		retryCount++
-		if retryCount > maxRetryCount {
-			return nil, fmt.Errorf("%w: %w", ErrServerInjector, err)
-		}
-		delay := time.Duration(math.Pow(2, float64(retryCount))) * time.Second
-		time.Sleep(delay)
+	s.combined, err = combined.New(s.ctx, data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrServerInjector, err)
 	}
 
 	control.RegisterConfigServer(s.grpcServer, s)
@@ -97,6 +86,13 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.S
 
 func (s *Server) Running() bool {
 	return s.ctx.Err() == nil
+}
+
+func (s *Server) AddExtHandler(ext func() error) {
+	s.combined.ExtractorChanges(ext)
+}
+func (s *Server) AddInjHandler(inj func() error) {
+	s.combined.InjectorChanges(inj)
 }
 
 func (s *Server) Control(_ context.Context, message *control.Message) (*control.Response, error) {

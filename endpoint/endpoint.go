@@ -37,9 +37,10 @@ type Endpoint struct {
 	Errors   chan *slog.Record `extractor:"-"`
 	logger   *slog.Logger      `extractor:"-"`
 
-	ctx    context.Context    `extractor:"-"`
-	cancel context.CancelFunc `extractor:"-"`
-	wg     *sync.WaitGroup    `extractor:"-"`
+	ctx      context.Context    `extractor:"-"`
+	cancel   context.CancelFunc `extractor:"-"`
+	wg       *sync.WaitGroup    `extractor:"-"`
+	handlers map[State]func() error
 }
 
 // New creates a new Endpoint with the given data and settings.
@@ -97,6 +98,16 @@ func (e *Endpoint) SetLogger(handler slog.Handler) {
 	e.logger = slog.New(handler)
 }
 
+// AddHandler adds a handler to the endpoint.
+// only one handler can be added per state (stored in a map[State]Handler
+// Pass handler as a pointer to the object
+func (e *Endpoint) AddHandler(state State, handler func() error) {
+	if e.handlers == nil {
+		e.handlers = make(map[State]func() error)
+	}
+	e.handlers[state] = handler
+}
+
 func (e *Endpoint) run(onlyClient bool) {
 	e.localIP = nil
 
@@ -125,13 +136,13 @@ func (e *Endpoint) run(onlyClient bool) {
 		if !e.Running() {
 			err = e.tryPeers(false)
 			if err == nil {
-				e.logger.Info("syncer endpoint client started")
+				e.clientStarted()
 			}
 			if errors.Is(err, ErrClientServerNonAvailable) && !onlyClient {
 				e.server, err = server.New(e.ctx, e.wg, e.data, e.settings, e.Errors)
 
 				if err == nil {
-					e.logger.Info("syncer endpoint server started")
+					e.serverStarted()
 					checkPeersLast = time.Now()
 
 					ifaces, err := net.Interfaces()
@@ -162,12 +173,12 @@ func (e *Endpoint) run(onlyClient bool) {
 		}
 		// check if the Client exists but the context is canceled
 		if e.client != nil && !e.client.Running() {
-			e.logger.Info("Client Stopped")
+			e.serverStopped()
 			e.localIP = nil
 			e.client = nil
 		}
 		if e.server != nil && !e.server.Running() {
-			e.logger.Info("Server Stopped")
+			e.serverStopped()
 			e.localIP = nil
 			e.server = nil
 		}
