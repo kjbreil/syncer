@@ -152,6 +152,7 @@ func setValueMap(va reflect.Value, entry *control.Entry) error {
 	// case reflect.Complex128:
 	// case reflect.Interface:
 	// case reflect.Pointer:
+	// case reflect.Struct:
 	default:
 		return fmt.Errorf("cannot create key of type %s", keyType.Kind())
 	}

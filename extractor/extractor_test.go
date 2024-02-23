@@ -1,65 +1,12 @@
 package extractor
 
 import (
+	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/helpers/equal"
+	. "github.com/kjbreil/syncer/helpers/test"
 	"reflect"
 	"testing"
-
-	"github.com/kjbreil/syncer/control"
 )
-
-type TestStruct struct {
-	String         string
-	Int            int
-	Interface      TestInterface
-	Slice          []int
-	SliceStruct    []SD
-	SlicePtr       []*int
-	SlicePtrStruct []*SD
-	SliceInterface []TestInterface
-	SliceSlice     [][]int
-	SliceMap       []map[string]int
-	Array          [10]int
-	ArrayStruct    [10]SD
-	ArrayPtr       [10]*int
-	ArrayPtrStruct [10]*SD
-	ArrayInterface [10]TestInterface
-	ArrayArray     [10][10]int
-	Map            map[string]int
-	MapKeyInt      map[int]int
-	MapStruct      map[string]TestStruct
-	MapPtr         map[string]*int
-	MapPtrStruct   map[string]*TestStruct
-	MapInterface   map[string]TestInterface
-	MapMap         map[string]map[string]int
-	MapSlice       map[string][]int
-	SubStruct      TestSub
-	SubStructPtr   *TestStruct
-	unexported     string
-	Function       func()
-}
-
-type TestSub struct {
-	MapPtrStruct map[int64]*SD
-	S            string
-}
-
-type SD struct {
-	Name string
-	Data string
-}
-
-type TestInterface interface {
-	String() string
-}
-
-type TestInterfaceImpl struct {
-	S string
-}
-
-func (t *TestInterfaceImpl) String() string {
-	return t.S
-}
 
 func makeChangeTestStruct() TestStruct {
 	return TestStruct{
@@ -97,7 +44,7 @@ func makeChangeTestStruct() TestStruct {
 
 func TestExtractor_Entries(t *testing.T) {
 
-	ts := makeBaseTestStruct()
+	ts := MakeBaseTestStruct()
 	ext, _ := New(ts)
 
 	tests := []struct {
@@ -115,7 +62,6 @@ func TestExtractor_Entries(t *testing.T) {
 					Key: []*control.Key{
 						{
 							Key: "TestStruct",
-							// Index: control.NewObjects(),
 						},
 						{
 							Key: "String",
@@ -284,11 +230,91 @@ func TestExtractor_Entries(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "MapKeyInt",
+			modFn: func() {
+				ts.MapKeyInt[0] = 2
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapKeyInt",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+					},
+					Value: control.NewObject(control.MakePtr(int64(2))),
+				},
+			},
+		},
+		{
+			name: "MapKeyUint",
+			modFn: func() {
+				ts.MapKeyUint[0] = 2
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapKeyInt",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(uint64(0)))),
+						},
+					},
+					Value: control.NewObject(control.MakePtr(int64(2))),
+				},
+			},
+		},
+		{
+			name: "MapKeyFloat",
+			modFn: func() {
+				ts.MapKeyFloat[1] = 2
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapKeyFloat",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(float64(1.000000)))),
+						},
+					},
+					Value: control.NewObject(control.MakePtr(int64(2))),
+				},
+			},
+		},
+		{
+			name: "MapKeyPtr",
+			modFn: func() {
+				ts.MapKeyPtr[control.MakePtr(1)] = 2
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapKeyPtr",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+					},
+					Value: control.NewObject(control.MakePtr(int64(2))),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// make sure a base slate is set before running the modFn
-			ts = makeBaseTestStruct()
+			ts = MakeBaseTestStruct()
 			ext.Entries(&ts)
 			tt.modFn()
 
@@ -304,7 +330,7 @@ func TestExtractor_Entries(t *testing.T) {
 
 func BenchmarkExtractor_Diff(b *testing.B) {
 	cs := makeChangeTestStruct()
-	ts := makeBaseTestStruct()
+	ts := MakeBaseTestStruct()
 
 	sliceEntries := 100000
 	ts.Slice = make([]int, 0, sliceEntries)
@@ -326,61 +352,5 @@ func Benchmark_equal1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		o, n = reflect.ValueOf(i), reflect.ValueOf(i)
 		equal.Equal(o, n)
-	}
-}
-
-func makeBaseTestStruct() TestStruct {
-	return TestStruct{
-		String:    "Base String",
-		Int:       1,
-		Interface: &TestInterfaceImpl{S: "TestInterface"},
-		Slice:     []int{1, 2, 3},
-		SliceStruct: []SD{
-			{Name: "Base SliceStruct Name 1", Data: "Base SliceStruct Data 1"},
-			{Name: "Base SliceStruct Name 2", Data: "Base SliceStruct Data 2"},
-		},
-		SlicePtr: []*int{control.MakePtr(1), control.MakePtr(2)},
-		SlicePtrStruct: []*SD{
-			{Name: "Base SlicePtrStruct Name 1", Data: "Base SlicePtrStruct Data 1"},
-			{Name: "Base SlicePtrStruct Name 2", Data: "Base SlicePtrStruct Data 2"},
-		},
-		SliceInterface: []TestInterface{&TestInterfaceImpl{S: "TestInterface"}},
-		SliceSlice:     [][]int{{1}},
-		Array:          [10]int{1},
-		ArrayStruct: [10]SD{
-			{Name: "Base SliceStruct Name 1", Data: "Base SliceStruct Data 1"},
-			{Name: "Base SliceStruct Name 2", Data: "Base SliceStruct Data 2"},
-		},
-		ArrayPtr: [10]*int{control.MakePtr(1), control.MakePtr(2)},
-		ArrayPtrStruct: [10]*SD{
-			{Name: "Base SlicePtrStruct Name 1", Data: "Base SlicePtrStruct Data 1"},
-			{Name: "Base SlicePtrStruct Name 2", Data: "Base SlicePtrStruct Data 2"},
-		},
-		ArrayInterface: [10]TestInterface{&TestInterfaceImpl{S: "TestInterface"}},
-		ArrayArray:     [10][10]int{{1, 2}, {3, 4}},
-		Map: map[string]int{
-			"Base First":  1,
-			"Base Second": 2,
-		},
-		MapStruct: map[string]TestStruct{
-			"Base First": {String: "Base First Test Struct"},
-		},
-		MapPtr: map[string]*int{
-			"Base First": control.MakePtr(1),
-		},
-		MapPtrStruct: map[string]*TestStruct{
-			"Base First": {String: "Base First Test Struct"},
-		},
-		MapInterface: map[string]TestInterface{"one": &TestInterfaceImpl{S: "TestInterface"}},
-		MapMap:       map[string]map[string]int{"top": {"second": 3}},
-		MapSlice:     map[string][]int{"one": {1, 2}},
-		SubStruct: TestSub{
-			S: "Base Test Sub",
-		},
-		SubStructPtr: &TestStruct{String: "Base Sub Test Struct"},
-		unexported:   "not exported",
-		Function: func() {
-
-		},
 	}
 }
