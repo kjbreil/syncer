@@ -27,6 +27,7 @@ func New(data any) (*Injector, error) {
 	}, nil
 }
 
+// AddAll adds multiple entries to the data.
 func (inj *Injector) AddAll(entries control.Entries) error {
 	for _, e := range entries {
 		err := inj.Add(e)
@@ -134,24 +135,21 @@ func setValueMap(va reflect.Value, entry *control.Entry) error {
 	// based on the key type, set the indexed key
 	switch keyType.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		indexInt := int(entry.GetCurrIndexObjects()[0].GetInt64())
-		iKey = reflect.ValueOf(indexInt)
+		iKey = reflect.ValueOf(int(entry.GetCurrIndexObjects()[0].GetInt64()))
 	case reflect.String:
 		// get the index as a string
 		iKey = reflect.ValueOf(entry.GetCurrIndexObjects()[0].GetString_())
-	// case reflect.Bool:
-	// case reflect.Uint:
-	// case reflect.Uint8:
-	// case reflect.Uint16:
-	// case reflect.Uint32:
-	// case reflect.Uint64:
-	// case reflect.Uintptr:
-	// case reflect.Float32:
-	// case reflect.Float64:
-	// case reflect.Complex64:
-	// case reflect.Complex128:
-	// case reflect.Interface:
+		// TODO: Handle below casese
+	case reflect.Bool:
+		iKey = reflect.ValueOf(entry.GetCurrIndexObjects()[0].GetBool())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		iKey = reflect.ValueOf(int(entry.GetCurrIndexObjects()[0].GetUint64()))
+	case reflect.Float32:
+		iKey = reflect.ValueOf(int(entry.GetCurrIndexObjects()[0].GetFloat32()))
+	case reflect.Float64:
+		iKey = reflect.ValueOf(int(entry.GetCurrIndexObjects()[0].GetFloat64()))
 	// case reflect.Pointer:
+	// case reflect.Interface:
 	// case reflect.Struct:
 	default:
 		return fmt.Errorf("cannot create key of type %s", keyType.Kind())

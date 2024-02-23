@@ -56,3 +56,10 @@ type TestInterfaceImpl struct {
 func (t *TestInterfaceImpl) String() string {
 	return t.S
 }
+
+type Tool int
+
+const (
+	ToolDns Tool = iota
+	ToolDhcp
+)

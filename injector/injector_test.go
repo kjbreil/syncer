@@ -3,72 +3,13 @@ package injector
 import (
 	"fmt"
 	"github.com/kjbreil/syncer/control"
+	"github.com/kjbreil/syncer/helpers/test"
 	"testing"
-)
-
-type TestStruct struct {
-	String         string
-	Int            int
-	Interface      TestInterface
-	Slice          []int
-	SliceStruct    []SD
-	SlicePtr       []*int
-	SlicePtrStruct []*SD
-	SliceInterface []TestInterface
-	SliceSlice     [][]int
-	SliceMap       []map[string]int
-	Array          [10]int
-	ArrayStruct    [10]SD
-	ArrayPtr       [10]*int
-	ArrayPtrStruct [10]*SD
-	ArrayInterface [10]TestInterface
-	ArrayArray     [10][10]int
-	Map            map[string]int
-	MapKeyInt      map[int]int
-	MapStruct      map[string]TestStruct
-	MapPtr         map[string]*int
-	MapPtrStruct   map[string]*TestStruct
-	MapInterface   map[string]TestInterface
-	MapMap         map[string]map[string]int
-	MapSlice       map[string][]int
-	SubStruct      TestSub
-	SubStructPtr   *TestStruct
-	unexported     string
-	Function       func()
-}
-
-type TestSub struct {
-	MapPtrStruct map[int64]*SD
-	S            string
-}
-
-type SD struct {
-	Name string
-	Data string
-}
-
-type TestInterface interface {
-	String() string
-}
-
-type TestInterfaceImpl struct {
-	S string
-}
-
-func (t *TestInterfaceImpl) String() string {
-	return t.S
-}
-
-type Tool int
-
-const (
-	ToolDns Tool = iota
-	ToolDhcp
 )
 
 //nolint:gocognit
 func TestInjector_Add(t *testing.T) {
-	ts := TestStruct{}
+	ts := test.TestStruct{}
 	inj, err := New(&ts)
 	if err != nil {
 		t.Fatal(err)
@@ -244,6 +185,78 @@ func TestInjector_Add(t *testing.T) {
 			wantFn: func() error {
 				if ts.Map != nil {
 					return fmt.Errorf("ts.Map should be nil")
+				}
+				return nil
+			},
+		},
+		{
+			name: "MapKeyBool",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapKeyBool",
+							Index: control.NewObjects(true),
+						},
+					},
+					Value: control.NewObject(1),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if v, ok := ts.MapKeyBool[true]; !ok || v != 1 {
+					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
+				}
+				return nil
+			},
+		},
+		{
+			name: "MapKeyUint",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapKeyUint",
+							Index: control.NewObjects(uint(1)),
+						},
+					},
+					Value: control.NewObject(1),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if v, ok := ts.MapKeyUint[1]; !ok || v != 1 {
+					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
+				}
+				return nil
+			},
+		},
+		{
+			name: "MapKeyFloat",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapKeyFloat",
+							Index: control.NewObjects(float64(1)),
+						},
+					},
+					Value: control.NewObject(1),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if v, ok := ts.MapKeyFloat[1]; !ok || v != 1 {
+					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
 				}
 				return nil
 			},
