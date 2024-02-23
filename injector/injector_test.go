@@ -3,48 +3,60 @@ package injector
 import (
 	"fmt"
 	"github.com/kjbreil/syncer/control"
-	"net"
 	"testing"
 )
 
 type TestStruct struct {
 	String         string
 	Int            int
+	Interface      TestInterface
 	Slice          []int
 	SliceStruct    []SD
 	SlicePtr       []*int
 	SlicePtrStruct []*SD
+	SliceInterface []TestInterface
 	SliceSlice     [][]int
+	SliceMap       []map[string]int
+	Array          [10]int
+	ArrayStruct    [10]SD
+	ArrayPtr       [10]*int
+	ArrayPtrStruct [10]*SD
+	ArrayInterface [10]TestInterface
+	ArrayArray     [10][10]int
 	Map            map[string]int
+	MapKeyInt      map[int]int
 	MapStruct      map[string]TestStruct
 	MapPtr         map[string]*int
 	MapPtrStruct   map[string]*TestStruct
+	MapInterface   map[string]TestInterface
 	MapMap         map[string]map[string]int
-	Sub            TestSub
-	SubPtr         *TestStruct
-	IP             net.IP
+	MapSlice       map[string][]int
+	SubStruct      TestSub
+	SubStructPtr   *TestStruct
+	unexported     string
+	Function       func()
 }
+
 type TestSub struct {
-	S string
-}
-type TestInterface interface {
-	String() string
-}
-
-func (t *TestSub) String() string {
-	return t.S
-}
-
-type TestSub2 struct {
-	String string
+	MapPtrStruct map[int64]*SD
+	S            string
 }
 
 type SD struct {
 	Name string
 	Data string
 }
-type TestStruct2 struct {
-	SD
+
+type TestInterface interface {
+	String() string
+}
+
+type TestInterfaceImpl struct {
+	S string
+}
+
+func (t *TestInterfaceImpl) String() string {
+	return t.S
 }
 
 type Tool int
@@ -53,64 +65,6 @@ const (
 	ToolDns Tool = iota
 	ToolDhcp
 )
-
-func TestInjector_AddS(t *testing.T) {
-	ts := TestStruct2{
-		SD{
-			Name: "Test",
-		},
-	}
-	inj, err := New(&ts)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	entries := []*control.Entry{
-		{
-			Key: []*control.Key{
-				{
-					Key: "TestStruct2",
-				},
-				{
-					Key: "SD",
-				},
-				{
-					Key: "Name",
-				},
-			},
-			Value: control.NewObject("oneone"),
-		},
-	}
-
-	// entries := []*control.Entry{
-	// 	{
-	// 		Key: []*control.Key{
-	// 			{
-	// 				Key: "TestStruct2",
-	// 			},
-	// 			{
-	// 				Key:   "Reservations",
-	// 				Index: control.NewObjects("sn"),
-	// 			},
-	//
-	// 			{
-	// 				Key:   "IP",
-	// 				Index: control.NewObjects(0),
-	// 			},
-	// 		},
-	// 		Value: control.NewObject(uint8(255)),
-	// 	},
-	// }
-	for _, e := range entries {
-
-		err = inj.Add(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	fmt.Println(ts)
-}
 
 //nolint:gocognit
 func TestInjector_Add(t *testing.T) {
@@ -225,6 +179,29 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
+			name: "Nil Slice",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Slice",
+						},
+					},
+					Remove: true,
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.Slice != nil {
+					return fmt.Errorf("ts.Slice should be nil")
+				}
+				return nil
+			},
+		},
+		{
 			name: "Add To SliceSlice",
 			entries: []*control.Entry{
 				{
@@ -268,6 +245,29 @@ func TestInjector_Add(t *testing.T) {
 			wantFn: func() error {
 				if v, ok := ts.Map["test"]; !ok || v != 1 {
 					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
+				}
+				return nil
+			},
+		},
+		{
+			name: "Nil Map",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Map",
+						},
+					},
+					Remove: true,
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.Map != nil {
+					return fmt.Errorf("ts.Map should be nil")
 				}
 				return nil
 			},

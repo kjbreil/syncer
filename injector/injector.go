@@ -102,6 +102,11 @@ func setValue(va reflect.Value, ctrl *control.Entry) error {
 func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 	// check if the key is indexed
 	if ctrl.GetKey()[ctrl.GetKeyI()].GetIndex() == nil {
+		// no index on a map key and remove type make map nil
+		if ctrl.Remove {
+			va.Set(reflect.New(va.Type()).Elem())
+			return nil
+		}
 		// return an error if the key is not indexed
 		return errors.New("map type without index")
 	}
@@ -248,6 +253,11 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 
 func setValueSlice(va reflect.Value, ctrl *control.Entry) error {
 	if len(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()) == 0 {
+		// no index on a map key and remove type make map nil
+		if ctrl.Remove {
+			va.Set(reflect.New(va.Type()).Elem())
+			return nil
+		}
 		return errors.New("slice type without index")
 	}
 	// if ctrl is a delete entry then delete the current index+
