@@ -3,9 +3,8 @@ package injector
 import (
 	"errors"
 	"fmt"
-	"reflect"
-
 	"github.com/kjbreil/syncer/control"
+	"reflect"
 )
 
 type Injector struct {
@@ -28,8 +27,18 @@ func New(data any) (*Injector, error) {
 	}, nil
 }
 
+func (inj *Injector) AddAll(entries control.Entries) error {
+	for _, e := range entries {
+		err := inj.Add(e)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Add adds a control entry to the data.
-func (inj *Injector) Add(ctrl *control.Entry) error {
+func (inj *Injector) Add(entry *control.Entry) error {
 
 	v := reflect.ValueOf(inj.data)
 
@@ -40,38 +49,38 @@ func (inj *Injector) Add(ctrl *control.Entry) error {
 
 	t := v.Type()
 
-	if t.Name() != ctrl.GetKey()[ctrl.GetKeyI()].GetKey() {
-		return fmt.Errorf("injector top level type mismatch %s  != %s", t.Name(), ctrl.GetKey()[ctrl.GetKeyI()].GetKey())
+	if t.Name() != entry.GetKey()[entry.GetKeyI()].GetKey() {
+		return fmt.Errorf("injector top level type mismatch %s  != %s", t.Name(), entry.GetKey()[entry.GetKeyI()].GetKey())
 	}
 
-	return add(v, ctrl.Advance())
+	return add(v, entry.Advance())
 }
 
 // Add adds a control entry to the data. Based on the data type either travels down the key's or sets the value
-func add(v reflect.Value, ctrl *control.Entry) error {
+func add(v reflect.Value, entry *control.Entry) error {
 	v = reflect.Indirect(v)
 
-	if va := v.FieldByName(ctrl.GetKey()[ctrl.GetKeyI()].GetKey()); va.IsValid() {
+	if va := v.FieldByName(entry.GetKey()[entry.GetKeyI()].GetKey()); va.IsValid() {
 		va = reflect.Indirect(va)
 		switch va.Kind() {
 		case reflect.Slice:
-			return setValueSlice(va, ctrl)
+			return setValueSlice(va, entry)
 		case reflect.Map:
-			return setValueMap(va, ctrl)
+			return setValueMap(va, entry)
 		case reflect.Interface:
 			va = va.Elem()
 			fallthrough
 		case reflect.Struct:
-			return add(va, ctrl.Advance())
+			return add(va, entry.Advance())
 		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
 			if va.CanSet() {
-				return setValue(va, ctrl)
+				return setValue(va, entry)
 			} else {
-				return fmt.Errorf("cannot set value in add for %s", ctrl.GetKey()[ctrl.GetKeyI()].GetKey())
+				return fmt.Errorf("cannot set value in add for %s", entry.GetKey()[entry.GetKeyI()].GetKey())
 			}
 		default:
-			return fmt.Errorf("cannot add value for %s type %s", ctrl.GetKey()[ctrl.GetKeyI()].GetKey(), va.Kind())
+			return fmt.Errorf("cannot add value for %s type %s", entry.GetKey()[entry.GetKeyI()].GetKey(), va.Kind())
 		}
 	}
 	// return errors.New("key not found in data")
@@ -79,31 +88,31 @@ func add(v reflect.Value, ctrl *control.Entry) error {
 	return errors.New("injector add reached end when it should not have")
 }
 
-func setValue(va reflect.Value, ctrl *control.Entry) error {
+func setValue(va reflect.Value, entry *control.Entry) error {
 	switch va.Kind() {
 	case reflect.Slice:
-		return setValueSlice(va, ctrl)
+		return setValueSlice(va, entry)
 	case reflect.Map:
-		return setValueMap(va, ctrl)
+		return setValueMap(va, entry)
 	case reflect.Interface:
 		va = va.Elem()
 		fallthrough
 	case reflect.Struct:
-		return add(va, ctrl.Advance())
+		return add(va, entry.Advance())
 	case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-		return ctrl.GetValue().SetValue(va)
+		return entry.GetValue().SetValue(va)
 	default:
-		return fmt.Errorf("cannot set value in setValue for %s of type %s", ctrl.GetKey()[ctrl.GetKeyI()].GetKey(), va.Kind())
+		return fmt.Errorf("cannot set value in setValue for %s of type %s", entry.GetKey()[entry.GetKeyI()].GetKey(), va.Kind())
 	}
 }
 
 // setValueMap sets a value in a map based on the control entry
-func setValueMap(va reflect.Value, ctrl *control.Entry) error {
+func setValueMap(va reflect.Value, entry *control.Entry) error {
 	// check if the key is indexed
-	if ctrl.GetKey()[ctrl.GetKeyI()].GetIndex() == nil {
+	if entry.GetCurrIndexObjects() == nil {
 		// no index on a map key and remove type make map nil
-		if ctrl.Remove {
+		if entry.Remove {
 			va.Set(reflect.New(va.Type()).Elem())
 			return nil
 		}
@@ -125,18 +134,27 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 	// based on the key type, set the indexed key
 	switch keyType.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		// get the index as an int
-		indexInt := int(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()[0].GetInt64())
-		// set the indexed key to the int
+		indexInt := int(entry.GetCurrIndexObjects()[0].GetInt64())
 		iKey = reflect.ValueOf(indexInt)
 	case reflect.String:
 		// get the index as a string
-		iKey = reflect.ValueOf(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()[0].GetString_())
+		iKey = reflect.ValueOf(entry.GetCurrIndexObjects()[0].GetString_())
+	// case reflect.Bool:
+	// case reflect.Uint:
+	// case reflect.Uint8:
+	// case reflect.Uint16:
+	// case reflect.Uint32:
+	// case reflect.Uint64:
+	// case reflect.Uintptr:
+	// case reflect.Float32:
+	// case reflect.Float64:
+	// case reflect.Complex64:
+	// case reflect.Complex128:
+	// case reflect.Interface:
+	// case reflect.Pointer:
 	default:
-		// panic if the key type is not supported
-		panic("I don't know what I'm doing here")
+		return fmt.Errorf("cannot create key of type %s", keyType.Kind())
 	}
-	// iKey = iKey.Convert(keyType)
 
 	newK := reflect.New(keyType).Elem()
 	newK.Set(iKey.Convert(keyType))
@@ -150,12 +168,12 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 	switch valueType {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		// get the index as an int
-		indexInt := int(ctrl.GetValue().GetInt64())
+		indexInt := int(entry.GetValue().GetInt64())
 		// set the indexed value to the int
 		iValue = reflect.ValueOf(indexInt)
 	case reflect.String:
 		// get the index as a string
-		iValue = reflect.ValueOf(ctrl.GetValue().GetString_())
+		iValue = reflect.ValueOf(entry.GetValue().GetString_())
 	case reflect.Map:
 		// if the map is empty, create a new map with the correct key and value types
 		if va.Len() == 0 {
@@ -171,11 +189,11 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 			iValue = va.MapIndex(iKey)
 		}
 		// if the key is indexed, advance the control entry
-		if len(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()) > 1 {
-			ctrl.Key[ctrl.GetKeyI()].Index = ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()[1:]
+		if len(entry.GetCurrIndexObjects()) > 1 {
+			entry.Key[entry.GetKeyI()].Index = entry.GetCurrIndexObjects()[1:]
 		}
 		// set the indexed value based on the advanced control entry
-		err := setValue(iValue, ctrl)
+		err := setValue(iValue, entry)
 		// return an error if one occurs
 		if err != nil {
 			return err
@@ -213,7 +231,7 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 		}
 
 		// add the indexed value based on the advanced control entry
-		err := add(iValue, ctrl.Advance())
+		err := add(iValue, entry.Advance())
 		// return an error if one occurs
 		if err != nil {
 			return err
@@ -251,18 +269,18 @@ func setValueMap(va reflect.Value, ctrl *control.Entry) error {
 	return nil
 }
 
-func setValueSlice(va reflect.Value, ctrl *control.Entry) error {
-	if len(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()) == 0 {
+func setValueSlice(va reflect.Value, entry *control.Entry) error {
+	if len(entry.GetCurrIndexObjects()) == 0 {
 		// no index on a map key and remove type make map nil
-		if ctrl.Remove {
+		if entry.Remove {
 			va.Set(reflect.New(va.Type()).Elem())
 			return nil
 		}
 		return errors.New("slice type without index")
 	}
-	// if ctrl is a delete entry then delete the current index+
-	indexInt := int(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()[0].GetInt64())
-	if ctrl.GetRemove() {
+	// if entry is a delete entry then delete the current index+
+	indexInt := int(entry.GetCurrIndexObjects()[0].GetInt64())
+	if entry.GetRemove() {
 		newSlice := reflect.MakeSlice(va.Type(), indexInt, indexInt)
 		reflect.Copy(newSlice, va)
 		va.Set(newSlice)
@@ -277,13 +295,8 @@ func setValueSlice(va reflect.Value, ctrl *control.Entry) error {
 	}
 
 	// e.Key = e.GetKey()[1:]
-	if len(ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()) > 1 {
-		ctrl.Key[0].Index = ctrl.GetKey()[ctrl.GetKeyI()].GetIndex()[1:]
+	if len(entry.GetCurrIndexObjects()) > 1 {
+		entry.AdvanceCurrKeyIndex()
 	}
-	return setValue(va.Index(indexInt), ctrl)
-}
-
-func mkInterfaceTest(v reflect.Value) {
-	it := v.Interface()
-	fmt.Println(it)
+	return setValue(va.Index(indexInt), entry)
 }

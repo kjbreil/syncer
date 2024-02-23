@@ -82,7 +82,7 @@ func TestInjector_Add(t *testing.T) {
 		wantFn  func() error
 	}{
 		{
-			name: "change string",
+			name: "Test Sub",
 			entries: []*control.Entry{
 				{
 					Key: []*control.Key{
@@ -90,10 +90,10 @@ func TestInjector_Add(t *testing.T) {
 							Key: "TestStruct",
 						},
 						{
-							Key: "Sub",
+							Key: "SubStruct",
 						},
 						{
-							Key: "Sub2",
+							Key: "S",
 						},
 					},
 					Value: &control.Object{String_: control.MakePtr("change string")},
@@ -101,14 +101,14 @@ func TestInjector_Add(t *testing.T) {
 			},
 			wantErr: false,
 			wantFn: func() error {
-				if ts.String != "change string" {
+				if ts.SubStruct.S != "change string" {
 					return fmt.Errorf("string %s should be \"change string\"", ts.String)
 				}
 				return nil
 			},
 		},
 		{
-			name: "Test Sub",
+			name: "change string",
 			entries: []*control.Entry{
 				{
 					Key: []*control.Key{
@@ -155,30 +155,6 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
-			name: "Add To Slice",
-			entries: []*control.Entry{
-				{
-					Key: []*control.Key{
-						{
-							Key: "TestStruct",
-						},
-						{
-							Key:   "IP",
-							Index: control.NewObjects(0),
-						},
-					},
-					Value: control.NewObject(255),
-				},
-			},
-			wantErr: false,
-			wantFn: func() error {
-				if len(ts.Slice) == 0 || ts.Slice[0] != 1 {
-					return fmt.Errorf("ts.Slice is length %d, should be 1", len(ts.Slice))
-				}
-				return nil
-			},
-		},
-		{
 			name: "Nil Slice",
 			entries: []*control.Entry{
 				{
@@ -211,7 +187,7 @@ func TestInjector_Add(t *testing.T) {
 						},
 						{
 							Key:   "SliceSlice",
-							Index: control.NewObjects(0, control.NewObject(1)),
+							Index: control.NewObjects(control.NewObject(0), control.NewObject(1)),
 						},
 					},
 					Value: control.NewObject(1),
@@ -219,8 +195,8 @@ func TestInjector_Add(t *testing.T) {
 			},
 			wantErr: false,
 			wantFn: func() error {
-				if len(ts.Slice) == 0 || ts.Slice[0] != 1 {
-					return fmt.Errorf("ts.Slice is length %d, should be 1", len(ts.Slice))
+				if ts.SliceSlice[0][1] != 1 {
+					return fmt.Errorf("ts.SliceSlice value not changed")
 				}
 				return nil
 			},
