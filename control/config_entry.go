@@ -6,21 +6,34 @@ import (
 )
 
 func (e *Entry) Advance() *Entry {
-	// if int(e.KeyI) < len(e.GetKey()) {
-	// }
-	e.KeyI++
+	if int(e.KeyI) < len(e.GetKey()) {
+		e.KeyI++
+	}
 	return e
 }
 
-func (e *Entry) Last() bool {
-	return int(e.KeyI) == len(e.GetKey())-1
+func (e *Entry) IsLastKeyIndex() bool {
+	return len(e.GetKey()) == 0 || (int(e.KeyI) == len(e.GetKey())-1 && e.IsLastIndex())
 }
 
 func (e *Entry) GetCurrIndexObjects() Objects {
+	if e == nil {
+		return nil
+	}
+	if len(e.GetKey()) == 0 {
+		return nil
+	}
 	return e.GetKey()[e.GetKeyI()].GetIndex()
 }
 func (e *Entry) GetCurrIndex() *Object {
+	if len(e.GetCurrIndexObjects()) == 0 {
+		return nil
+	}
 	return e.GetCurrIndexObjects()[0]
+}
+
+func (e *Entry) IsLastIndex() bool {
+	return e.GetCurrIndex() == nil || len(e.GetCurrIndexObjects()) == 1
 }
 
 func (e *Entry) AdvanceCurrKeyIndex() {

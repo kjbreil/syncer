@@ -160,7 +160,7 @@ func setValueMap(va reflect.Value, entry *control.Entry) error {
 
 	iKey = newK
 
-	if entry.Last() && entry.Remove {
+	if entry.IsLastKeyIndex() && entry.Remove {
 		va.SetMapIndex(iKey, reflect.Value{})
 		return nil
 	}
