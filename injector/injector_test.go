@@ -167,6 +167,30 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
+			name: "Add To MapStruct",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Map",
+							Index: control.NewObjects("test"),
+						},
+					},
+					Value: control.NewObject(1),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if v, ok := ts.Map["test"]; !ok || v != 1 {
+					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
+				}
+				return nil
+			},
+		},
+		{
 			name: "Nil Map",
 			entries: []*control.Entry{
 				{
@@ -213,6 +237,101 @@ func TestInjector_Add(t *testing.T) {
 				if ts.Map != nil {
 					if _, ok := ts.Map["Base First"]; ok {
 						return fmt.Errorf("ts.Map[\"Base First\"] should be nil")
+					}
+				}
+				return nil
+			},
+		},
+		{
+			name: "Add to Empty Map",
+			preFn: func() {
+				ts.Map = map[string]int{"Base First": 1}
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Map",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+						},
+					},
+					Remove: true,
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.Map != nil {
+					if _, ok := ts.Map["Base First"]; ok {
+						return fmt.Errorf("ts.Map[\"Base First\"] should be nil")
+					}
+				}
+				return nil
+			},
+		},
+		{
+			name: "Add to Empty MapStruct",
+			preFn: func() {
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+						},
+						{
+							Key: "String",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("Base First Test Struct")),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.MapStruct != nil {
+					if _, ok := ts.MapStruct["Base First"]; !ok {
+						return fmt.Errorf("ts.MapStruct[\"Base First\"] should exist")
+					}
+				}
+				return nil
+			},
+		},
+		{
+			name: "Add to Empty MapMapType",
+			preFn: func() {
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapMapType",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First")), control.NewObject(control.MakePtr("Base Second"))),
+						},
+						{
+							Key: "S",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("inside")),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.MapStruct != nil {
+					if ms, ok := ts.MapStruct["Base First"]; !ok {
+						return fmt.Errorf("ts.MapStruct[\"Base First\"] should exist")
+					} else {
+						if ms.String != "inside" {
+							return fmt.Errorf("ts.MapStruct[\"Base First\"].String should be \"inside\"")
+						}
 					}
 				}
 				return nil

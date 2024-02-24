@@ -24,6 +24,7 @@ type TestStruct struct {
 	MapKeyFloat    map[float64]int
 	MapKeyPtr      map[*int]int
 	MapStruct      map[string]TestStruct
+	MapMapType     map[string]MapType
 	MapPtr         map[string]*int
 	MapPtrStruct   map[string]*TestStruct
 	MapInterface   map[string]TestInterface
@@ -34,6 +35,8 @@ type TestStruct struct {
 	unexported     string
 	Function       func()
 }
+
+type MapType map[string]TestSub
 
 type TestSub struct {
 	MapPtrStruct map[int64]*SD

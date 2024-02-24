@@ -38,7 +38,7 @@ func New(data any) (*Extractor, error) {
 	}
 	t := reflect.Indirect(reflect.ValueOf(data)).Type()
 	dataStruct := reflect.New(t)
-	aStruct := dataStruct.Interface()
+	aStruct := deepcopy.Any(dataStruct.Interface())
 	return &Extractor{
 		data:    aStruct,
 		history: make([]*control.Diff, 0, historySize),
@@ -109,9 +109,10 @@ func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 	oldValue := reflect.Indirect(reflect.ValueOf(ext.data))
 
 	head := extractObject(newValue, oldValue, newValue.Type().Name())
+	// TODO: This needs to be moved withing the head != nil but maps are messed up
+	// use the pitData for ext.data since it is already a deep copy of data
+	ext.data = pitData
 	if head != nil {
-		// use the pitData for ext.data since it is already a deep copy of data
-		ext.data = pitData
 		head.Timestamp()
 	}
 

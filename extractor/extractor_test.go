@@ -44,11 +44,17 @@ func makeChangeTestStruct() TestStruct {
 
 func TestExtractor_Entries(t *testing.T) {
 
-	ts := MakeBaseTestStruct()
+	// ts := MakeBaseTestStruct()
+	ts := TestStruct{}
+	newTs := func() {
+		// ts = deepcopy.Any(TestStruct{})
+	}
+
 	ext, _ := New(ts)
 
 	tests := []struct {
 		name  string
+		preFn func()
 		modFn func()
 		want  []*control.Entry
 	}{
@@ -73,6 +79,9 @@ func TestExtractor_Entries(t *testing.T) {
 		},
 		{
 			name: "add to int slice",
+			preFn: func() {
+				ts.Slice = []int{1, 2, 3}
+			},
 			modFn: func() {
 				ts.Slice = append(ts.Slice, 4)
 			},
@@ -115,6 +124,9 @@ func TestExtractor_Entries(t *testing.T) {
 		},
 		{
 			name: "remove from int slice check update old",
+			preFn: func() {
+				ts.Slice = []int{1, 2, 3}
+			},
 			modFn: func() {
 				ts.Slice = ts.Slice[:len(ts.Slice)-1]
 			},
@@ -154,6 +166,9 @@ func TestExtractor_Entries(t *testing.T) {
 		},
 		{
 			name: "empty slice",
+			preFn: func() {
+				ts.Slice = []int{1, 2, 3}
+			},
 			modFn: func() {
 				ts.Slice = []int{}
 			},
@@ -174,6 +189,9 @@ func TestExtractor_Entries(t *testing.T) {
 		},
 		{
 			name: "remove from map",
+			preFn: func() {
+				ts.Map = map[string]int{"Base First": 1}
+			},
 			modFn: func() {
 				delete(ts.Map, "Base First")
 			},
@@ -194,6 +212,9 @@ func TestExtractor_Entries(t *testing.T) {
 		},
 		{
 			name: "make map nil",
+			preFn: func() {
+				ts.Map = map[string]int{"Base First": 1}
+			},
 			modFn: func() {
 				ts.Map = nil
 			},
@@ -212,7 +233,94 @@ func TestExtractor_Entries(t *testing.T) {
 			},
 		},
 		{
+			name: "add to empty MapStruct",
+			preFn: func() {
+			},
+			modFn: func() {
+				ts.MapStruct = map[string]TestStruct{
+					"Base First": {String: "Base First Test Struct"},
+				}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+						},
+						{
+							Key: "String",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("Base First Test Struct")),
+				},
+			},
+		},
+
+		{
+			name: "add to empty MapMapType",
+			preFn: func() {
+			},
+			modFn: func() {
+				ts.MapMapType = map[string]MapType{
+					"Base First": {
+						"Base Second": {
+							S: "inside",
+						},
+					},
+				}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapMapType",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First")), control.NewObject(control.MakePtr("Base Second"))),
+						},
+						{
+							Key: "S",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("inside")),
+				},
+			},
+		},
+		{
+			name: "remove from MapStruct",
+			preFn: func() {
+				ts.MapStruct = map[string]TestStruct{
+					"Base First": {String: "Base First Test Struct"},
+				}
+			},
+			modFn: func() {
+				delete(ts.MapStruct, "Base First")
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
 			name: "remove pointer struct",
+			preFn: func() {
+				ts.SubStructPtr = &TestStruct{}
+			},
 			modFn: func() {
 				ts.SubStructPtr = nil
 			},
@@ -232,6 +340,9 @@ func TestExtractor_Entries(t *testing.T) {
 		},
 		{
 			name: "MapKeyInt",
+			preFn: func() {
+				ts.MapKeyInt = map[int]int{0: 0}
+			},
 			modFn: func() {
 				ts.MapKeyInt[0] = 2
 			},
@@ -314,9 +425,14 @@ func TestExtractor_Entries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// make sure a base slate is set before running the modFn
-			ts = MakeBaseTestStruct()
-			ext.Entries(&ts)
-			tt.modFn()
+			newTs()
+			if tt.preFn != nil {
+				tt.preFn()
+			}
+			_ = ext.Entries(&ts)
+			if tt.modFn != nil {
+				tt.modFn()
+			}
 
 			got := ext.Entries(&ts)
 			if !got.Equals(tt.want) {

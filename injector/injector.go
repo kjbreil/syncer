@@ -204,18 +204,6 @@ func setValueMap(va reflect.Value, entry *control.Entry) error {
 		}
 
 	case reflect.Struct, reflect.Interface:
-		// if the map is empty, create a new map with the correct key and value types
-		if va.Len() == 0 {
-			// get the key and value types of the map element
-			keyType := va.Type().Key()
-			vt := va.Type().Elem()
-			// create a map type with the correct key and value types
-			mapType := reflect.MapOf(keyType, vt)
-			// create a new map with the correct size
-			m := reflect.MakeMapWithSize(mapType, 0)
-			// set the map to the new map
-			va.Set(m)
-		}
 		// generate a value to be used for the new value at the key
 		// map values obtained by reflect cannot be set since they are not addressable so we need to get the current
 		// value and set a new value to the current value then modify said value and then assign it to the map
