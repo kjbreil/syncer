@@ -7,7 +7,7 @@ type TestStruct struct {
 	Slice          []int
 	SliceStruct    []SD
 	SlicePtr       []*int
-	SlicePtrStruct []*SD
+	SlicePtrStruct []*TestStruct
 	SliceInterface []TestInterface
 	SliceSlice     [][]int
 	SliceMap       []map[string]int

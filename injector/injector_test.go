@@ -3,13 +3,13 @@ package injector
 import (
 	"fmt"
 	"github.com/kjbreil/syncer/control"
-	"github.com/kjbreil/syncer/helpers/test"
+	. "github.com/kjbreil/syncer/helpers/test"
 	"testing"
 )
 
 //nolint:gocognit
 func TestInjector_Add(t *testing.T) {
-	ts := test.TestStruct{}
+	ts := TestStruct{}
 	inj, err := New(&ts)
 	if err != nil {
 		t.Fatal(err)
@@ -143,6 +143,78 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
+			name: "Add To SliceStruct",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+						{
+							Key: "Name",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Name 1")),
+				},
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+						{
+							Key: "Data",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Data 1")),
+				},
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key: "Name",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Name 2")),
+				},
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key: "Data",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Data 2")),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if len(ts.SliceStruct) != 2 {
+					return fmt.Errorf("ts.SliceStruct not two objets")
+				}
+				return nil
+			},
+		},
+		{
 			name: "Add To Map",
 			entries: []*control.Entry{
 				{
@@ -192,6 +264,9 @@ func TestInjector_Add(t *testing.T) {
 		},
 		{
 			name: "Nil Map",
+			preFn: func() {
+				ts.Map = map[string]int{"test": 1}
+			},
 			entries: []*control.Entry{
 				{
 					Key: []*control.Key{
@@ -243,10 +318,7 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
-			name: "Add to Empty Map",
-			preFn: func() {
-				ts.Map = map[string]int{"Base First": 1}
-			},
+			name: "Remove Not there Map",
 			entries: []*control.Entry{
 				{
 					Key: []*control.Key{
@@ -263,10 +335,32 @@ func TestInjector_Add(t *testing.T) {
 			},
 			wantErr: false,
 			wantFn: func() error {
-				if ts.Map != nil {
-					if _, ok := ts.Map["Base First"]; ok {
-						return fmt.Errorf("ts.Map[\"Base First\"] should be nil")
-					}
+				if _, ok := ts.Map["Base First"]; ok {
+					return fmt.Errorf("ts.Map[\"Base First\"] should not be there")
+				}
+				return nil
+			},
+		},
+		{
+			name: "Add to Empty Map",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Map",
+							Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+						},
+					},
+					Value: control.NewObject(1),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if v, ok := ts.Map["Base First"]; !ok || v != 1 {
+					return fmt.Errorf("ts.Map[\"Base First\"] is %d, should be 1", v)
 				}
 				return nil
 			},
@@ -325,12 +419,16 @@ func TestInjector_Add(t *testing.T) {
 			},
 			wantErr: false,
 			wantFn: func() error {
-				if ts.MapStruct != nil {
-					if ms, ok := ts.MapStruct["Base First"]; !ok {
+				if ts.MapMapType != nil {
+					if ms, ok := ts.MapMapType["Base First"]; !ok {
 						return fmt.Errorf("ts.MapStruct[\"Base First\"] should exist")
 					} else {
-						if ms.String != "inside" {
-							return fmt.Errorf("ts.MapStruct[\"Base First\"].String should be \"inside\"")
+						if ss, ok := ms["Base Second"]; !ok {
+							return fmt.Errorf("ts.MapStruct[\"Base Second\"] should exist")
+						} else {
+							if ss.S != "inside" {
+								return fmt.Errorf("ts.MapStruct[\"Base Second\"].S should be inside")
+							}
 						}
 					}
 				}
@@ -470,9 +568,148 @@ func TestInjector_Add(t *testing.T) {
 				if v, ok := ts.MapMap["top"]; !ok {
 					return fmt.Errorf("MapMap[\"top\"] was not found")
 				} else {
-					if v, ok := v["bottom"]; !ok || v != 1 {
+					if v, ok := v["bottom2"]; !ok || v != 2 {
 						return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
 					}
+				}
+				return nil
+			},
+		},
+		{
+			name: "Add Pointer Struct",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "SubStructPtr",
+						},
+						{
+							Key: "String",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SubStructPtr String")),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.SubStructPtr != nil && ts.SubStructPtr.String == "SubStructPtr String" {
+					return nil
+				}
+				return fmt.Errorf("ts.SubStructPtr.String should be SubStructPtr String")
+			},
+		},
+		{
+			name: "Remove Pointer Struct",
+			preFn: func() {
+				ts.SubStructPtr = &TestStruct{
+					String: "SubStructPtr String",
+				}
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "SubStructPtr",
+						},
+					},
+					Remove: true,
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.SubStructPtr != nil {
+					return fmt.Errorf("ts.SubStructPtr should not exist")
+				}
+				return nil
+			},
+		},
+		{
+			name: "Add Interface",
+			preFn: func() {
+				ts.Interface = &TestInterfaceImpl{}
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Interface",
+						},
+						{
+							Key: "S",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("TestInterface")),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.Interface == nil {
+					return fmt.Errorf("ts.Interface should exist")
+				}
+				if ts.Interface.String() != "TestInterface" {
+					return fmt.Errorf("ts.Interface.String() should be TestInterface")
+				}
+				return nil
+			},
+		},
+		{
+			name: "Remove Interface",
+			preFn: func() {
+				ts.Interface = &TestInterfaceImpl{S: "TestInterface"}
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Interface",
+						},
+					},
+					Remove: true,
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.Interface != nil {
+					return fmt.Errorf("ts.Interface should not exist")
+				}
+				return nil
+			},
+		},
+		{
+			name: "Add to Array",
+			preFn: func() {
+				ts.Array = [10]int{1, 2, 3, 4}
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Array",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(4)))),
+						},
+					},
+					Value: control.NewObject(control.MakePtr(int64(5))),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if ts.Array[4] != 5 {
+					return fmt.Errorf("ts.Array[4] should be 5, is %d", ts.Array[4])
 				}
 				return nil
 			},

@@ -17,11 +17,8 @@ func makeChangeTestStruct() TestStruct {
 			{Name: "Change SliceStruct Name 1", Data: "Change SliceStruct Data 1"},
 			{Name: "Change SliceStruct Name 2", Data: "Change SliceStruct Data 2"},
 		},
-		SlicePtr: []*int{control.MakePtr(1), control.MakePtr(2)},
-		SlicePtrStruct: []*SD{
-			{Name: "Change SlicePtrStruct Name 1", Data: "Change SlicePtrStruct Data 1"},
-			{Name: "Change SlicePtrStruct Name 2", Data: "Change SlicePtrStruct Data 2"},
-		},
+		SlicePtr:       []*int{control.MakePtr(1), control.MakePtr(2)},
+		SlicePtrStruct: []*TestStruct{},
 		Map: map[string]int{
 			"Change Third":  3,
 			"Change Fourth": 4,
@@ -188,6 +185,141 @@ func TestExtractor_Entries(t *testing.T) {
 			},
 		},
 		{
+			name: "empty slice",
+			preFn: func() {
+				ts.Slice = []int{1, 2, 3}
+			},
+			modFn: func() {
+				ts.Slice = []int{}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Slice",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "add to SliceStruct",
+			modFn: func() {
+				ts.SliceStruct = []SD{
+					{Name: "SliceStruct Name 1", Data: "SliceStruct Data 1"},
+					{Name: "SliceStruct Name 2", Data: "SliceStruct Data 2"},
+				}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+						{
+							Key: "Name",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Name 1")),
+				},
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+						{
+							Key: "Data",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Data 1")),
+				},
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key: "Name",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Name 2")),
+				},
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SliceStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key: "Data",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SliceStruct Data 2")),
+				},
+			},
+		},
+		{
+			name: "add to SlicePtrStruct",
+			modFn: func() {
+				ts.SlicePtrStruct = []*TestStruct{
+					{String: "SlicePtrStruct String 1"},
+					{String: "SlicePtrStruct String 2"},
+				}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SlicePtrStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+						{
+							Key: "String",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SlicePtrStruct String 1")),
+				},
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "SlicePtrStruct",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key: "String",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SlicePtrStruct String 2")),
+				},
+			},
+		},
+		{
 			name: "remove from map",
 			preFn: func() {
 				ts.Map = map[string]int{"Base First": 1}
@@ -317,9 +449,35 @@ func TestExtractor_Entries(t *testing.T) {
 			},
 		},
 		{
+			name: "add pointer struct",
+			modFn: func() {
+				ts.SubStructPtr = &TestStruct{
+					String: "SubStructPtr String",
+				}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "SubStructPtr",
+						},
+						{
+							Key: "String",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("SubStructPtr String")),
+				},
+			},
+		},
+		{
 			name: "remove pointer struct",
 			preFn: func() {
-				ts.SubStructPtr = &TestStruct{}
+				ts.SubStructPtr = &TestStruct{
+					String: "SubStructPtr String",
+				}
 			},
 			modFn: func() {
 				ts.SubStructPtr = nil
@@ -364,7 +522,7 @@ func TestExtractor_Entries(t *testing.T) {
 		{
 			name: "MapKeyUint",
 			modFn: func() {
-				ts.MapKeyUint[0] = 2
+				ts.MapKeyUint = map[uint]int{0: 2}
 			},
 			want: []*control.Entry{
 				{
@@ -418,6 +576,73 @@ func TestExtractor_Entries(t *testing.T) {
 						},
 					},
 					Value: control.NewObject(control.MakePtr(int64(2))),
+				},
+			},
+		},
+		{
+			name: "Add Interface",
+			modFn: func() {
+				ts.Interface = &TestInterfaceImpl{S: "TestInterface"}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Interface",
+						},
+						{
+							Key: "S",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("TestInterface")),
+				},
+			},
+		},
+		{
+			name: "Remove Interface",
+			preFn: func() {
+				ts.Interface = &TestInterfaceImpl{S: "TestInterface"}
+			},
+			modFn: func() {
+				ts.Interface = nil
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key: "Interface",
+						},
+					},
+					Remove: true,
+				},
+			},
+		},
+		{
+			name: "Add to Array",
+			preFn: func() {
+				ts.Array = [10]int{1, 2, 3, 4}
+			},
+			modFn: func() {
+				ts.Array[4] = 5
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "Array",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(4)))),
+						},
+					},
+					Value: control.NewObject(control.MakePtr(int64(5))),
 				},
 			},
 		},

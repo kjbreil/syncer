@@ -5,8 +5,11 @@ import (
 	"strings"
 )
 
+// Advance either advances the index or the key
 func (e *Entry) Advance() *Entry {
-	if int(e.KeyI) < len(e.GetKey()) {
+	if len(e.GetCurrIndexObjects()) > 1 {
+		e.Key[e.GetKeyI()].Index = e.GetCurrIndexObjects()[1:]
+	} else if int(e.KeyI) < len(e.GetKey())-1 {
 		e.KeyI++
 	}
 	return e
@@ -25,6 +28,16 @@ func (e *Entry) GetCurrIndexObjects() Objects {
 	}
 	return e.GetKey()[e.GetKeyI()].GetIndex()
 }
+
+func (e *Entry) GetCurrKey() string {
+	if e == nil {
+		return ""
+	}
+	if len(e.GetKey()) == 0 {
+		return ""
+	}
+	return e.GetKey()[e.GetKeyI()].GetKey()
+}
 func (e *Entry) GetCurrIndex() *Object {
 	if len(e.GetCurrIndexObjects()) == 0 {
 		return nil
@@ -34,10 +47,6 @@ func (e *Entry) GetCurrIndex() *Object {
 
 func (e *Entry) IsLastIndex() bool {
 	return e.GetCurrIndex() == nil || len(e.GetCurrIndexObjects()) == 1
-}
-
-func (e *Entry) AdvanceCurrKeyIndex() {
-	e.Key[e.GetKeyI()].Index = e.GetCurrIndexObjects()[1:]
 }
 
 func (e *Entry) Equals(other *Entry) bool {

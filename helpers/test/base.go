@@ -13,9 +13,9 @@ func MakeBaseTestStruct() TestStruct {
 			{Name: "Base SliceStruct Name 2", Data: "Base SliceStruct Data 2"},
 		},
 		SlicePtr: []*int{control.MakePtr(1), control.MakePtr(2)},
-		SlicePtrStruct: []*SD{
-			{Name: "Base SlicePtrStruct Name 1", Data: "Base SlicePtrStruct Data 1"},
-			{Name: "Base SlicePtrStruct Name 2", Data: "Base SlicePtrStruct Data 2"},
+		SlicePtrStruct: []*TestStruct{
+			{String: "Base SlicePtrStruct Name 1"},
+			{String: "Base SlicePtrStruct Name 2"},
 		},
 		SliceInterface: []TestInterface{&TestInterfaceImpl{S: "TestInterface"}},
 		SliceSlice:     [][]int{{1}},

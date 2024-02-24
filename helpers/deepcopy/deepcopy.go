@@ -6,10 +6,10 @@ import (
 
 type copyFn func(dst, src reflect.Value)
 
-var copyFuncs map[reflect.Kind]copyFn
+var copyFns map[reflect.Kind]copyFn
 
 func init() {
-	copyFuncs = map[reflect.Kind]copyFn{
+	copyFns = map[reflect.Kind]copyFn{
 		reflect.Bool:       deepCopyPrimitive,
 		reflect.Int:        deepCopyPrimitive,
 		reflect.Int8:       deepCopyPrimitive,
@@ -69,7 +69,7 @@ func Any[T any](src T) T {
 func deepCopy(src reflect.Value) reflect.Value {
 	dst := reflect.Indirect(reflect.New(src.Type()))
 
-	if c, ok := copyFuncs[src.Kind()]; ok {
+	if c, ok := copyFns[src.Kind()]; ok {
 		c(dst, src)
 	}
 
