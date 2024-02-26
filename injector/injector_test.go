@@ -3,6 +3,8 @@ package injector
 import (
 	"fmt"
 	"github.com/kjbreil/syncer/control"
+	"github.com/kjbreil/syncer/extractor"
+	"github.com/kjbreil/syncer/helpers/equal"
 	. "github.com/kjbreil/syncer/helpers/test"
 	"testing"
 )
@@ -734,4 +736,657 @@ func TestInjector_Add(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInjector_AddAll(t *testing.T) {
+	ts := TestStruct{
+		Interface: &TestInterfaceImpl{S: ""},
+	}
+	inj, err := New(&ts)
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	entries := []*control.Entry{
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key: "String",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base String")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key: "Int",
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key: "Interface",
+				},
+				{
+					Key: "S",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("TestInterface")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "Slice",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "Slice",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(2))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "Slice",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(2)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(3))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SliceStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "Name",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Name 1")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SliceStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "Data",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Data 1")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SliceStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+				{
+					Key: "Name",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Name 2")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SliceStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+				{
+					Key: "Data",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Data 2")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SlicePtr",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SlicePtr",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(2))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SlicePtrStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "String",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SlicePtrStruct Name 1")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SlicePtrStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+				{
+					Key: "String",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SlicePtrStruct Name 2")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SliceInterface",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "S",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("TestInterface")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "SliceSlice",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0))), control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "Array",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "Name",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Name 1")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "Data",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Data 1")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+				{
+					Key: "Name",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Name 2")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+				{
+					Key: "Data",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SliceStruct Data 2")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayPtr",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayPtr",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(2))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayPtrStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "Name",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SlicePtrStruct Name 1")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayPtrStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "Data",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SlicePtrStruct Data 1")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayPtrStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+				{
+					Key: "Name",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SlicePtrStruct Name 2")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayPtrStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+				{
+					Key: "Data",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base SlicePtrStruct Data 2")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayInterface",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+				},
+				{
+					Key: "S",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("TestInterface")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayArray",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0))), control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayArray",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0))), control.NewObject(control.MakePtr(int64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(2))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayArray",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1))), control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(3))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "ArrayArray",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1))), control.NewObject(control.MakePtr(int64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(4))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "Map",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "Map",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("Base Second"))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(2))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapKeyInt",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapKeyBool",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(true))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapKeyUint",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(uint64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapKeyFloat",
+					Index: control.NewObjects(control.NewObject(control.MakePtr(float64(1.000000)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+				},
+				{
+					Key: "String",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base First Test Struct")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapPtr",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapPtrStruct",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("Base First"))),
+				},
+				{
+					Key: "String",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base First Test Struct")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapInterface",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("one"))),
+				},
+				{
+					Key: "S",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("TestInterface")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapMap",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("top")), control.NewObject(control.MakePtr("second"))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(3))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapSlice",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("one")), control.NewObject(control.MakePtr(int64(0)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(1))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key:   "MapSlice",
+					Index: control.NewObjects(control.NewObject(control.MakePtr("one")), control.NewObject(control.MakePtr(int64(1)))),
+				},
+			},
+			Value: control.NewObject(control.MakePtr(int64(2))),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key: "SubStruct",
+				},
+				{
+					Key: "S",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base Test Sub")),
+		},
+		{
+			Key: []*control.Key{
+				{
+					Key: "TestStruct",
+				},
+				{
+					Key: "SubStructPtr",
+				},
+				{
+					Key: "String",
+				},
+			},
+			Value: control.NewObject(control.MakePtr("Base Sub Test Struct")),
+		},
+	}
+
+	err = inj.AddAll(entries)
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	bs := MakeBaseTestStruct()
+	if !equal.Any(ts, bs) {
+		ext, _ := extractor.New(ts)
+		_, _ = ext.Diff(&ts)
+		diffEntries := ext.Entries(&bs)
+		fmt.Println(diffEntries)
+		t.Fatalf("ts does not equal MakeBaseTestStruct()")
+	}
+
 }

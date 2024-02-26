@@ -93,6 +93,10 @@ func Equal(n, o reflect.Value) bool {
 	return false
 }
 
+func Any[T any](n, o T) bool {
+	return Equal(reflect.ValueOf(n), reflect.ValueOf(o))
+}
+
 func sameKind(n, o reflect.Value) bool {
 
 	switch n.Kind() {

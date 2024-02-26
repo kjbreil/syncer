@@ -46,6 +46,21 @@ func New(data any) (*Extractor, error) {
 	}, nil
 }
 
+func NewEntries(data any) (control.Entries, error) {
+	if data == nil {
+		return nil, errors.New("data is nil")
+	}
+	t := reflect.Indirect(reflect.ValueOf(data)).Type()
+	dataStruct := reflect.New(t)
+	aStruct := deepcopy.Any(dataStruct.Interface())
+	e := &Extractor{
+		data:    aStruct,
+		history: make([]*control.Diff, 0, historySize),
+		mut:     new(sync.Mutex),
+	}
+	return e.Entries(&data), nil
+}
+
 func (ext *Extractor) addHistory(head *control.Diff) {
 	if len(head.GetChildren()) == 0 {
 		return
@@ -106,7 +121,23 @@ func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 	}
 
 	newValue = reflect.Indirect(newValue)
+	// newValue = reflect.ValueOf(newValue.Interface())
+
 	oldValue := reflect.Indirect(reflect.ValueOf(ext.data))
+
+	// children, err := extract(newValue, oldValue, newValue.Type())
+	//
+	// if err != nil && !errors.Is(err, ErrUnsupportedType) {
+	// 	return nil, err
+	// }
+	//
+	// ext.data = pitData
+	// if len(children) > 0 {
+	// 	head := children[0]
+	// 	head.Timestamp()
+	// 	return head, nil
+	// }
+	// return nil, nil
 
 	head := extractObject(newValue, oldValue, newValue.Type().Name())
 	// TODO: This needs to be moved withing the head != nil but maps are messed up
@@ -118,6 +149,17 @@ func (ext *Extractor) Diff(data any) (*control.Diff, error) {
 
 	return head, nil
 }
+
+// func extract(newValue reflect.Value, oldValue reflect.Value, upperType reflect.Type) ([]*control.Diff, error) {
+// 	if iFn, ok := extFns[newValue.Kind()]; ok {
+// 		head, err := iFn(newValue, oldValue, upperType)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		return head, nil
+// 	}
+// 	return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, newValue.Kind())
+// }
 
 // extractObject performs a deep comparison of two reflect Values and creates a control.Diff
 //
@@ -174,18 +216,18 @@ func extractObject(newValue, oldValue reflect.Value, keyName string) *control.Di
 				current.Children = append(current.Children, child)
 			}
 		case reflect.Map:
-			children := extractMap(newValueField, oldValueField, newValueTypeField.Type, newValueTypeField.Name)
+			children := extractMapOld(newValueField, oldValueField, newValueTypeField.Type, newValueTypeField.Name)
 			if len(children) > 0 {
 				current.Children = append(current.Children, children...)
 			}
 		case reflect.Slice, reflect.Array:
-			children := extractSlice(newValueField, oldValueField, newValueTypeField.Name)
+			children := extractSliceOld(newValueField, oldValueField, newValueTypeField.Name)
 			if len(children) > 0 {
 				current.Children = append(current.Children, children...)
 			}
 		case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64:
-			child := extractPrimitive(newValueField, oldValueField, newValueTypeField.Name)
+			child := extractPrimitiveOld(newValueField, oldValueField, newValueTypeField.Name)
 			if child != nil {
 				current.Children = append(current.Children, child)
 			}
@@ -226,7 +268,7 @@ func extractObjectInterface(newValue, oldValue reflect.Value, keyName string) *c
 	// check if the newValue is null
 	if newValue.IsNil() {
 		// if newValue is null and oldValue is not null then create delete
-		if !oldValue.IsNil() {
+		if !oldValue.IsValid() || !oldValue.IsNil() {
 			return control.NewDelDiff(&control.Key{
 				Key: keyName,
 			})
@@ -239,19 +281,22 @@ func extractObjectInterface(newValue, oldValue reflect.Value, keyName string) *c
 	}
 
 	// if the old value is null then generate a blank type to compare against in oldValue
-	if oldValue.IsNil() {
-		t := newValue.Elem().Type()
-		if t.Kind() == reflect.Ptr {
-			t = t.Elem()
-		}
-		oldValue.Set(reflect.New(t))
+	if !oldValue.IsValid() || oldValue.IsNil() {
+		oldValue = reflect.New(newValue.Elem().Type())
+		// t := newValue.Elem().Type()
+		// if t.Kind() == reflect.Ptr {
+		// 	t = t.Elem()
+		// }
+		// if oldValue.CanSet() {
+		// 	oldValue.Set(reflect.New(t))
+		// }
 	}
 	child := extractObject(newValue.Elem(), oldValue.Elem(), keyName)
 
 	return child
 }
 
-func extractPrimitive(newValue reflect.Value, oldValue reflect.Value, keyName string) *control.Diff {
+func extractPrimitiveOld(newValue reflect.Value, oldValue reflect.Value, keyName string) *control.Diff {
 	if !equal.Equal(newValue, oldValue) {
 		child := control.NewDiff(&control.Key{
 			Key: keyName,
@@ -286,7 +331,7 @@ func extractIndexBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName
 			mapType := reflect.MapOf(keyType, valueType)
 			oldValue = reflect.MakeMapWithSize(mapType, 0)
 		}
-		children := extractMap(newValue, oldValue, newValue.Type(), keyName)
+		children := extractMapOld(newValue, oldValue, newValue.Type(), keyName)
 		if len(children) > 0 {
 			for _, c := range children {
 				c.Key.Index = control.NewObjects(index, c.GetKey().GetIndex()...)
@@ -294,7 +339,7 @@ func extractIndexBuiltIn(newValue reflect.Value, oldValue reflect.Value, keyName
 			return children
 		}
 	case reflect.Slice, reflect.Array:
-		children := extractSlice(newValue, oldValue, keyName)
+		children := extractSliceOld(newValue, oldValue, keyName)
 		if len(children) > 0 {
 			for _, c := range children {
 				c.Key.Index = control.NewObjects(index, c.GetKey().GetIndex()...)
@@ -324,7 +369,7 @@ func deleteIndexBuiltIn(keyName string, index any) *control.Diff {
 	})
 }
 
-func extractSlice(newValue, oldValue reflect.Value, keyName string) []*control.Diff {
+func extractSliceOld(newValue, oldValue reflect.Value, keyName string) []*control.Diff {
 	var children []*control.Diff
 
 	// if newValue is a slice and is null while oldValue is not null then create remove
@@ -372,7 +417,7 @@ func extractSlice(newValue, oldValue reflect.Value, keyName string) []*control.D
 	return children
 }
 
-func extractMap(newValue, oldValue reflect.Value, newUpperType reflect.Type, keyName string) []*control.Diff {
+func extractMapOld(newValue, oldValue reflect.Value, newUpperType reflect.Type, keyName string) []*control.Diff {
 	var children []*control.Diff
 	if newValue.IsNil() && !oldValue.IsNil() {
 		children = append(children, control.NewDelDiff(&control.Key{

@@ -45,7 +45,6 @@ func init() {
 		reflect.Slice:      injectSlice,
 		reflect.Struct:     injectStruct,
 	}
-
 }
 
 // New creates a new injector with the given data.

@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+func NewEntry(level int, value any) *Entry {
+	return &Entry{
+		Key:   make([]*Key, 0, level),
+		Value: NewObject(value),
+	}
+}
+
 // Advance either advances the index or the key
 func (e *Entry) Advance() *Entry {
 	if len(e.GetCurrIndexObjects()) > 1 {

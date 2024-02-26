@@ -22,7 +22,6 @@ type TestStruct struct {
 	MapKeyBool     map[bool]int
 	MapKeyUint     map[uint]int
 	MapKeyFloat    map[float64]int
-	MapKeyPtr      map[*int]int
 	MapStruct      map[string]TestStruct
 	MapMapType     map[string]MapType
 	MapPtr         map[string]*int

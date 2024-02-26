@@ -6,6 +6,14 @@ import (
 
 type Entries []*Entry
 
+func (ent *Entries) AddKey(key string) {
+	for _, e := range *ent {
+		e.Key = append([]*Key{&Key{
+			Key: key,
+		}}, e.Key...)
+	}
+}
+
 func (ent *Entries) Struct() string {
 	var builder strings.Builder
 	for _, e := range *ent {
