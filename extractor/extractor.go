@@ -2,10 +2,11 @@ package extractor
 
 import (
 	"errors"
-	"github.com/kjbreil/syncer/control"
-	"github.com/kjbreil/syncer/helpers/deepcopy"
 	"reflect"
 	"sync"
+
+	"github.com/kjbreil/syncer/control"
+	"github.com/kjbreil/syncer/helpers/deepcopy"
 )
 
 type Extractor struct {

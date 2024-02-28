@@ -1,13 +1,13 @@
 package extractor
 
 import (
+	"reflect"
+
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/helpers/equal"
-	"reflect"
 )
 
 func extractArray(newValue, oldValue reflect.Value, upperType reflect.StructField, level int) (control.Entries, error) {
-
 	var entries control.Entries
 	level++
 	for i := 0; i < newValue.Len(); i++ {

@@ -3,8 +3,9 @@ package injector
 import (
 	"errors"
 	"fmt"
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 func injectMap(va reflect.Value, entry *control.Entry) error {

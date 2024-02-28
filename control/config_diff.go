@@ -2,8 +2,9 @@ package control
 
 import (
 	"fmt"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"reflect"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func NewDiff(key *Key) *Diff {
@@ -28,6 +29,7 @@ func (d *Diff) Timestamp() {
 		child.Timestamp()
 	}
 }
+
 func (d *Diff) AddChild(child *Diff, length int) {
 	if len(d.Children) == 0 {
 		d.Children = make([]*Diff, 0, length)
@@ -38,6 +40,7 @@ func (d *Diff) AddChild(child *Diff, length int) {
 func (d *Diff) Entries() Entries {
 	return d.entries([]*Key{d.GetKey()})
 }
+
 func (d *Diff) entries(keys []*Key) []*Entry {
 	var entries Entries
 	for _, c := range d.GetChildren() {

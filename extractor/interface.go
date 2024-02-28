@@ -1,8 +1,9 @@
 package extractor
 
 import (
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 func extractInterface(newValue, oldValue reflect.Value, upperType reflect.StructField, level int) (control.Entries, error) {

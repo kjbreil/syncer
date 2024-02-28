@@ -2,13 +2,14 @@ package injector
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/extractor"
 	. "github.com/kjbreil/syncer/helpers/test"
-	"testing"
 )
 
-//nolint:gocognit
+//nolint:gocognit its a test so very long
 func TestInjector_Add(t *testing.T) {
 	ts := TestStruct{}
 	inj, err := New(&ts)
@@ -421,15 +422,15 @@ func TestInjector_Add(t *testing.T) {
 			wantErr: false,
 			wantFn: func() error {
 				if ts.MapMapType != nil {
-					if ms, ok := ts.MapMapType["Base First"]; !ok {
+					ms, ok := ts.MapMapType["Base First"]
+					if !ok {
 						return fmt.Errorf("ts.MapStruct[\"Base First\"] should exist")
+					}
+					if ss, ok := ms["Base Second"]; !ok {
+						return fmt.Errorf("ts.MapStruct[\"Base Second\"] should exist")
 					} else {
-						if ss, ok := ms["Base Second"]; !ok {
-							return fmt.Errorf("ts.MapStruct[\"Base Second\"] should exist")
-						} else {
-							if ss.S != "inside" {
-								return fmt.Errorf("ts.MapStruct[\"Base Second\"].S should be inside")
-							}
+						if ss.S != "inside" {
+							return fmt.Errorf("ts.MapStruct[\"Base Second\"].S should be inside")
 						}
 					}
 				}
@@ -526,12 +527,12 @@ func TestInjector_Add(t *testing.T) {
 			},
 			wantErr: false,
 			wantFn: func() error {
-				if v, ok := ts.MapMap["top"]; !ok {
+				v, ok := ts.MapMap["top"]
+				if !ok {
 					return fmt.Errorf("MapMap[\"top\"] was not found")
-				} else {
-					if v, ok := v["bottom"]; !ok || v != 1 {
-						return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
-					}
+				}
+				if v, ok := v["bottom"]; !ok || v != 1 {
+					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
 				}
 				return nil
 			},
@@ -566,12 +567,12 @@ func TestInjector_Add(t *testing.T) {
 			},
 			wantErr: false,
 			wantFn: func() error {
-				if v, ok := ts.MapMap["top"]; !ok {
+				v, ok := ts.MapMap["top"]
+				if !ok {
 					return fmt.Errorf("MapMap[\"top\"] was not found")
-				} else {
-					if v, ok := v["bottom2"]; !ok || v != 2 {
-						return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
-					}
+				}
+				if v, ok := v["bottom2"]; !ok || v != 2 {
+					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
 				}
 				return nil
 			},

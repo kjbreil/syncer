@@ -2,8 +2,9 @@ package injector
 
 import (
 	"errors"
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 func injectSlice(va reflect.Value, entry *control.Entry) error {

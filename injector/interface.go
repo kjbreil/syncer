@@ -1,8 +1,9 @@
 package injector
 
 import (
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 func injectInterface(va reflect.Value, entry *control.Entry) error {

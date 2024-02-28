@@ -1,14 +1,13 @@
 package extractor
 
 import (
+	"testing"
+
 	"github.com/kjbreil/syncer/control"
 	. "github.com/kjbreil/syncer/helpers/test"
-
-	"testing"
 )
 
-func TestExtractor_GetDiff(t *testing.T) {
-
+func TestExtractor_Entries(t *testing.T) {
 	tests := []struct {
 		name string
 		// structure must be a &struct otherwise reflect only sees an interfaces when dereferencing the pointer
@@ -502,15 +501,16 @@ func TestExtractor_GetDiff(t *testing.T) {
 }
 
 func TestExtractor_GetDiff_Big(t *testing.T) {
-
 	// ts := MakeBaseTestStruct()
 	ts := TestStruct{}
-	newTs := func() {
+	newTS := func() {
 		ts = TestStruct{}
 	}
 
-	ext, _ := New(ts)
-
+	ext, err := New(ts)
+	if err != nil {
+		t.Fatalf("could not create extractor: %v", err)
+	}
 	tests := []struct {
 		name  string
 		preFn func()
@@ -563,7 +563,10 @@ func TestExtractor_GetDiff_Big(t *testing.T) {
 			name: "remove from int slice",
 			modFn: func() {
 				ts.Slice = []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
-				_, _ = ext.Entries(&ts)
+				_, err = ext.Entries(&ts)
+				if err != nil {
+					t.Fatalf("could not get Entries in modFn: %v", err)
+				}
 				ts.Slice = ts.Slice[:len(ts.Slice)-5]
 			},
 			want: []*control.Entry{
@@ -1008,7 +1011,6 @@ func TestExtractor_GetDiff_Big(t *testing.T) {
 			name: "MapKeyFloat",
 			modFn: func() {
 				ts.MapKeyFloat = map[float64]int{1: 2}
-
 			},
 			want: []*control.Entry{
 				{
@@ -1737,11 +1739,14 @@ func TestExtractor_GetDiff_Big(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// make sure a base slate is set before running the modFn
-			newTs()
+			newTS()
 			if tt.preFn != nil {
 				tt.preFn()
 			}
-			_, _ = ext.Entries(&ts)
+			_, err = ext.Entries(&ts)
+			if err != nil {
+				t.Errorf("Entries() error = %v", err)
+			}
 			if tt.modFn != nil {
 				tt.modFn()
 			}
@@ -1773,7 +1778,13 @@ func BenchmarkExtractor_GetDiff(b *testing.B) {
 		b.Fatal(err)
 	}
 	for i := 0; i < b.N; i++ {
-		_, _ = ext.Entries(&ts)
-		_, _ = ext.Entries(&cs)
+		_, err = ext.Entries(&ts)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = ext.Entries(&cs)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }

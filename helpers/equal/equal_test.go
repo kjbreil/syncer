@@ -1,10 +1,11 @@
 package equal
 
 import (
-	"github.com/kjbreil/syncer/control"
 	"reflect"
 	"testing"
 	"unsafe"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 type TestInterface interface {
@@ -18,6 +19,7 @@ type TestInterfaceImpl struct {
 func (t *TestInterfaceImpl) String() string {
 	return t.S
 }
+
 func TestEqual(t *testing.T) {
 	type args struct {
 		newValue any
@@ -269,7 +271,8 @@ func TestEqual(t *testing.T) {
 				oldValue: [1]int{2},
 			},
 			want: false,
-		}, {
+		},
+		{
 			name: "array of ptr matched with nil entries",
 			args: args{
 				newValue: [5]*int{control.MakePtr(1)},

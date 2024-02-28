@@ -2,8 +2,9 @@ package injector
 
 import (
 	"fmt"
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 func injectStruct(va reflect.Value, entry *control.Entry) error {

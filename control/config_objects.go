@@ -81,19 +81,20 @@ func (o *Object) Struct() string {
 	}
 	var sb strings.Builder
 	sb.WriteString("control.NewObject(")
-	if o.String_ != nil {
-		sb.WriteString(fmt.Sprintf("control.MakePtr(\"%s\")", o.GetString_()))
-	} else if o.Int64 != nil {
+	switch {
+	case o.String_ != nil:
+		sb.WriteString(fmt.Sprintf("control.MakePtr(\"%q\")", o.GetString_()))
+	case o.Int64 != nil:
 		sb.WriteString(fmt.Sprintf("control.MakePtr(int64(%d))", o.GetInt64()))
-	} else if o.Uint64 != nil {
+	case o.Uint64 != nil:
 		sb.WriteString(fmt.Sprintf("control.MakePtr(uint64(%d))", o.GetUint64()))
-	} else if o.Float32 != nil {
+	case o.Float32 != nil:
 		sb.WriteString(fmt.Sprintf("control.MakePtr(float32(%f))", o.GetFloat32()))
-	} else if o.Float64 != nil {
+	case o.Float64 != nil:
 		sb.WriteString(fmt.Sprintf("control.MakePtr(float64(%f))", o.GetFloat64()))
-	} else if o.Bool != nil {
+	case o.Bool != nil:
 		sb.WriteString(fmt.Sprintf("control.MakePtr(%t)", o.GetBool()))
-	} else if o.Bytes != nil {
+	case o.Bytes != nil:
 		sb.WriteString(fmt.Sprintf("[]byte(%v)", o.GetBytes()))
 	}
 	sb.WriteString(")")
@@ -110,7 +111,6 @@ func NewObjects(v any, oo ...*Object) []*Object {
 	return objects
 }
 
-//nolint:funlen
 func NewObject(v any) *Object {
 	va := reflect.Indirect(reflect.ValueOf(v))
 	if !va.IsValid() {
@@ -136,6 +136,7 @@ func NewObject(v any) *Object {
 		if va.Type().Elem().Kind() == reflect.Uint8 {
 			o.Bytes = va.Bytes()
 		}
+	default:
 	}
 
 	switch vv := v.(type) {
@@ -168,7 +169,7 @@ func (o *Object) SetValue(va reflect.Value) error {
 		b := o.GetBool()
 		va.SetBool(b)
 	default:
-		return fmt.Errorf("SetValue used on unknown kind: %s", va.Kind())
+		return fmt.Errorf("SetValue used on unknown kind: %q", va.Kind())
 	}
 	return nil
 }

@@ -1,8 +1,9 @@
 package extractor
 
 import (
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
 func extractMap(newValue, oldValue reflect.Value, upperType reflect.StructField, level int) (control.Entries, error) {
@@ -19,9 +20,6 @@ func extractMap(newValue, oldValue reflect.Value, upperType reflect.StructField,
 		valueType := upperType.Type.Elem()
 		mapType := reflect.MapOf(keyType, valueType)
 		oldValue = reflect.MakeMapWithSize(mapType, 0)
-		// if oldValue.CanSet() {
-		// 	oldValue.Set(reflect.MakeMapWithSize(mapType, 0))
-		// }
 	}
 
 	var entries control.Entries

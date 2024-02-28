@@ -42,16 +42,16 @@ var (
 	ErrServerInjector = errors.New("server could not create injector")
 )
 
-func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.Settings, errors chan *slog.Record) (*Server, error) {
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", settings.Port))
+func New(ctx context.Context, wg *sync.WaitGroup, data any, stngs *settings.Settings, errChan chan *slog.Record) (*Server, error) {
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", stngs.Port))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrServerListen, err)
 	}
 	var opts []grpc.ServerOption
 
-	var s = &Server{
+	s := &Server{
 		grpcServer: grpc.NewServer(opts...),
-		logger:     slog.New(slogchannel.Option{Level: slog.LevelDebug, Channel: errors}.NewChannelHandler()),
+		logger:     slog.New(slogchannel.Option{Level: slog.LevelDebug, Channel: errChan}.NewChannelHandler()),
 		// extractor:  ext,
 		data: data,
 		wg:   wg,
@@ -66,7 +66,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, settings *settings.S
 	control.RegisterConfigServer(s.grpcServer, s)
 	go func() {
 		err := s.grpcServer.Serve(lis)
-		if err != nil && err != grpc.ErrServerStopped {
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			s.logger.Error(fmt.Errorf("%w: %w", ErrServerExited, err).Error())
 		}
 		s.logger.Error(ErrServerExited.Error())
@@ -91,6 +91,7 @@ func (s *Server) Running() bool {
 func (s *Server) AddExtHandler(ext func() error) {
 	s.combined.ExtractorChanges(ext)
 }
+
 func (s *Server) AddInjHandler(inj func() error) {
 	s.combined.InjectorChanges(inj)
 }
@@ -113,8 +114,7 @@ func (s *Server) Pull(req *control.Request, srv control.Config_PullServer) error
 		s.combined.Reset()
 		fallthrough
 	case control.Request_CHANGES:
-		head, _ := s.combined.Diff(s.data)
-		entries := head.Entries()
+		entries, _ := s.combined.Entries(s.data)
 		for _, e := range entries {
 			err := srv.Send(e)
 			if err != nil {
@@ -146,12 +146,11 @@ func (s *Server) PushPull(server control.Config_PushPullServer) error {
 			select {
 			case <-time.After(checkInterval):
 				mu.Lock()
-				head, err := s.combined.Diff(s.data)
+				entries, err := s.combined.Entries(s.data)
 				if err != nil {
 					s.logger.Error(err.Error())
 					mu.Unlock()
 				}
-				entries := head.Entries()
 				for _, e := range entries {
 					err = server.Send(e)
 					if err != nil {
@@ -193,7 +192,7 @@ func (s *Server) PushPull(server control.Config_PushPullServer) error {
 			}
 			mu.Lock()
 			err = s.combined.Add(e)
-			_, _ = s.combined.Diff(s.data)
+			_, _ = s.combined.Entries(s.data)
 			mu.Unlock()
 			if err != nil {
 				s.logger.Error(fmt.Errorf("Server.PushPull(): %w", err).Error())

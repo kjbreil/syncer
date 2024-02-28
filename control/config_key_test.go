@@ -47,5 +47,4 @@ func TestKey_IsLastIndex(t *testing.T) {
 			}
 		})
 	}
-
 }

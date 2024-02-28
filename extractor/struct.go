@@ -2,11 +2,12 @@ package extractor
 
 import (
 	"fmt"
-	"github.com/kjbreil/syncer/control"
 	"reflect"
+
+	"github.com/kjbreil/syncer/control"
 )
 
-func extractStruct(newValue reflect.Value, oldValue reflect.Value, upperType reflect.StructField, level int) (control.Entries, error) {
+func extractStruct(newValue, oldValue reflect.Value, _ reflect.StructField, level int) (control.Entries, error) {
 	// TODO: This should check if oldValue is valid and return a delete if it is
 	if !newValue.IsValid() {
 		return nil, fmt.Errorf("extractStruct: newValue is not valid")

@@ -3,9 +3,10 @@ package extractor
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/helpers/deepcopy"
-	"reflect"
 )
 
 type extFn func(newValue, oldValue reflect.Value, upperType reflect.StructField, level int) (control.Entries, error)

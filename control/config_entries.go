@@ -4,12 +4,12 @@ import (
 	"strings"
 )
 
-// Entries is a slice of Entry structs
+// Entries is a slice of Entry structs.
 type Entries []*Entry
 
-// AddKey adds a new key to the first key in each Entry
-func (ent *Entries) AddKey(key string) {
-	for _, e := range *ent {
+// AddKey adds a new key to the first key in each Entry.
+func (ent Entries) AddKey(key string) {
+	for _, e := range ent {
 		if len(e.Key) > 0 && e.Key[0].GetKey() == "" {
 			e.Key[0].Key = key
 		} else {
@@ -20,9 +20,9 @@ func (ent *Entries) AddKey(key string) {
 	}
 }
 
-// AddIndex adds a new index to the first key in each Entry
-func (ent *Entries) AddIndex(index any) {
-	for _, e := range *ent {
+// AddIndex adds a new index to the first key in each Entry.
+func (ent Entries) AddIndex(index any) {
+	for _, e := range ent {
 		if len(e.Key) > 0 && e.Key[0].GetKey() == "" {
 			e.Key[0].Index = NewObjects(NewObject(index), e.Key[0].Index...)
 		} else {
@@ -33,17 +33,17 @@ func (ent *Entries) AddIndex(index any) {
 	}
 }
 
-// Struct returns a string representation of the Entries struct
-func (ent *Entries) Struct() string {
+// Struct returns a string representation of the Entries struct.
+func (ent Entries) Struct() string {
 	var builder strings.Builder
-	for _, e := range *ent {
+	for _, e := range ent {
 		builder.WriteString(e.Struct())
 	}
 
 	return builder.String()
 }
 
-// Equals returns true if the Entries are equal, false otherwise
+// Equals returns true if the Entries are equal, false otherwise.
 func (ent Entries) Equals(other Entries) bool {
 	if len(ent) != len(other) {
 		return false
@@ -58,8 +58,8 @@ func (ent Entries) Equals(other Entries) bool {
 	return true
 }
 
-// Diff returns a slice of Entries that are different between the two slices
-func (ent Entries) Diff(other Entries) *Entries {
+// Diff returns a slice of Entries that are different between the two slices.
+func (ent Entries) Diff(other Entries) Entries {
 	var diff Entries
 top:
 	for _, e := range ent {
@@ -71,5 +71,5 @@ top:
 		diff = append(diff, e)
 	}
 
-	return &diff
+	return diff
 }

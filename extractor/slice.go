@@ -1,9 +1,10 @@
 package extractor
 
 import (
+	"reflect"
+
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/helpers/equal"
-	"reflect"
 )
 
 func extractSlice(newValue, oldValue reflect.Value, upperType reflect.StructField, level int) (control.Entries, error) {
@@ -28,7 +29,7 @@ func extractSlice(newValue, oldValue reflect.Value, upperType reflect.StructFiel
 
 	// newValue is shorter, set a delete starting at the index of the difference
 	if newValue.Len() < oldValue.Len() {
-		additions := append(entries, control.NewRemoveEntry(level))
+		additions := control.Entries{control.NewRemoveEntry(level)}
 		additions.AddIndex(newValue.Len())
 		entries = append(entries, additions...)
 	}

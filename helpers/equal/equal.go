@@ -1,18 +1,15 @@
 package equal
 
 import (
-	"fmt"
 	"reflect"
 )
 
 // Equal returns true if the two values are equal, false otherwise.
 // Differs from reflect.Value.Equal in that it follows and compares the value behind pointers
 // and will compare any type of int or uint or float against itself.
-// floats do suffer from float math and generally a float32 does not match a float64
+// floats do suffer from float math and generally a float32 does not match a float64.
 func Equal(n, o reflect.Value) bool {
 	if !sameKind(n, o) {
-		nVi, oVi := n.Interface(), o.Interface()
-		fmt.Println(nVi, oVi)
 		return false
 	}
 	// if both are invalid then they are Equal
@@ -92,6 +89,7 @@ func Equal(n, o reflect.Value) bool {
 		return true
 	case reflect.UnsafePointer:
 		return n.UnsafePointer() == o.UnsafePointer()
+	case reflect.Uintptr:
 	}
 	return false
 }
@@ -101,7 +99,6 @@ func Any[T any](n, o T) bool {
 }
 
 func sameKind(n, o reflect.Value) bool {
-
 	switch n.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return o.Kind() == reflect.Int || o.Kind() == reflect.Int8 || o.Kind() == reflect.Int16 || o.Kind() == reflect.Int32 || o.Kind() == reflect.Int64
