@@ -1383,8 +1383,8 @@ func TestInjector_AddAll(t *testing.T) {
 	bs := MakeBaseTestStruct()
 	if !equal.Any(ts, bs) {
 		ext, _ := extractor.New(ts)
-		_, _ = ext.Diff(&ts)
-		diffEntries := ext.Entries(&bs)
+		_, _ = ext.Entries(&ts)
+		diffEntries, _ := ext.Entries(&bs)
 		fmt.Println(diffEntries)
 		t.Fatalf("ts does not equal MakeBaseTestStruct()")
 	}

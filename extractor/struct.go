@@ -28,7 +28,7 @@ func extractStruct(newValue reflect.Value, oldValue reflect.Value, upperType ref
 			continue
 		}
 		level++
-		fieldEntry, err := extract(newValue.Field(i), oldValue.Field(i), newValue.Type().Field(i), level)
+		fieldEntry, err := extract(newValue.Field(i), oldValue.Field(i), newValue.Type().Field(i), level, true)
 		if err != nil {
 			return nil, err
 		}

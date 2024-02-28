@@ -5,6 +5,18 @@ import (
 	"reflect"
 )
 
-func extractPointer(newValue, oldValue reflect.Value, keyName string) ([]*control.Diff, error) {
-	return nil, nil
+func extractPointer(newValue, oldValue reflect.Value, upperValue reflect.StructField, level int) (control.Entries, error) {
+	if (!newValue.IsValid() || newValue.IsNil()) && (!oldValue.IsValid() || oldValue.IsNil()) {
+		return nil, nil
+	}
+
+	if newValue.IsNil() && !oldValue.IsNil() {
+		return control.Entries{control.NewRemoveEntry(level)}, nil
+	}
+
+	if !oldValue.IsValid() || oldValue.IsNil() {
+		oldValue = reflect.New(newValue.Type()).Elem()
+	}
+
+	return extract(newValue.Elem(), oldValue.Elem(), upperValue, level, false)
 }

@@ -32,15 +32,16 @@ func init() {
 		reflect.Complex128: extractPrimitive,
 		reflect.String:     extractPrimitive,
 		reflect.Struct:     extractStruct,
-		// reflect.Array:      extractArray,
-		// reflect.Map:        extractMap,
-		// reflect.Ptr:        extractPointer,
-		reflect.Interface: extractInterface,
-		// reflect.Slice:      extractSlice,
+		reflect.Array:      extractArray,
+		reflect.Map:        extractMap,
+		reflect.Ptr:        extractPointer,
+		reflect.Interface:  extractInterface,
+		reflect.Slice:      extractSlice,
+		reflect.Func:       extractUnsupported,
 	}
 }
 
-func (ext *Extractor) GetDiff(data any) (control.Entries, error) {
+func (ext *Extractor) Entries(data any) (control.Entries, error) {
 	ext.mut.Lock()
 	defer ext.mut.Unlock()
 
@@ -59,7 +60,7 @@ func (ext *Extractor) GetDiff(data any) (control.Entries, error) {
 
 	entries, err := extract(newValue, oldValue, reflect.StructField{
 		Name: newValue.Type().Name(),
-	}, 0)
+	}, 0, true)
 
 	if err != nil && !errors.Is(err, ErrUnsupportedType) {
 		return nil, err
@@ -70,11 +71,22 @@ func (ext *Extractor) GetDiff(data any) (control.Entries, error) {
 	return entries, nil
 }
 
-func extract(newValue reflect.Value, oldValue reflect.Value, upperType reflect.StructField, level int) (control.Entries, error) {
+func extract(newValue reflect.Value, oldValue reflect.Value, upperType reflect.StructField, level int, makeKey bool) (control.Entries, error) {
+	if !newValue.IsValid() && !oldValue.IsValid() {
+		return nil, nil
+	}
+
+	if !oldValue.IsValid() {
+		oldValue = reflect.New(newValue.Type()).Elem()
+	}
+
 	if iFn, ok := extFns[newValue.Kind()]; ok {
 		head, err := iFn(newValue, oldValue, upperType, level)
 		if err != nil {
 			return nil, err
+		}
+		if !makeKey {
+			return head, nil
 		}
 		head.AddKey(upperType.Name)
 		return head, nil

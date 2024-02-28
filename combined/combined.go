@@ -128,28 +128,11 @@ func (c *Combined) Reset() {
 }
 
 // Diff returns the difference between the current configuration and the given data.
-func (c *Combined) Diff(data any) (*control.Diff, error) {
-	head, err := c.extractor.Diff(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create diff in extractor: %w", err)
-	}
-	if head == nil {
-		return nil, nil
-	}
-	c.extractorChgChan <- struct{}{}
-	return head, nil
-}
-
-// Diff returns the difference between the current configuration and the given data.
 func (c *Combined) Entries(data any) (control.Entries, error) {
-	head, err := c.extractor.Diff(data)
+	entries, err := c.extractor.Entries(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create diff in extractor: %w", err)
 	}
-	if head == nil {
-		return nil, nil
-	}
-	entries := head.Entries()
 	c.extractorChgChan <- struct{}{}
 	return entries, nil
 }

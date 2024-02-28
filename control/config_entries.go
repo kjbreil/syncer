@@ -8,9 +8,25 @@ type Entries []*Entry
 
 func (ent *Entries) AddKey(key string) {
 	for _, e := range *ent {
-		e.Key = append([]*Key{&Key{
-			Key: key,
-		}}, e.Key...)
+		if len(e.Key) > 0 && e.Key[0].GetKey() == "" {
+			e.Key[0].Key = key
+		} else {
+			e.Key = append([]*Key{&Key{
+				Key: key,
+			}}, e.Key...)
+		}
+	}
+}
+
+func (ent *Entries) AddIndex(index any) {
+	for _, e := range *ent {
+		if len(e.Key) > 0 && e.Key[0].GetKey() == "" {
+			e.Key[0].Index = NewObjects(NewObject(index), e.Key[0].Index...)
+		} else {
+			e.Key = append([]*Key{&Key{
+				Index: NewObjects(NewObject(index)),
+			}}, e.Key...)
+		}
 	}
 }
 
