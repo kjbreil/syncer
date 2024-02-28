@@ -1,6 +1,7 @@
 package equal
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -10,6 +11,8 @@ import (
 // floats do suffer from float math and generally a float32 does not match a float64
 func Equal(n, o reflect.Value) bool {
 	if !sameKind(n, o) {
+		nVi, oVi := n.Interface(), o.Interface()
+		fmt.Println(nVi, oVi)
 		return false
 	}
 	// if both are invalid then they are Equal

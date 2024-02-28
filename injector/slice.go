@@ -8,7 +8,7 @@ import (
 
 func injectSlice(va reflect.Value, entry *control.Entry) error {
 	// no index, either an error or full remove the slice
-	if len(entry.GetCurrIndexObjects()) == 0 {
+	if entry.GetCurrKey().HasNoIndex() {
 		// no index on a map key and remove type make map nil
 		if entry.GetRemove() {
 			va.Set(reflect.New(va.Type()).Elem())
@@ -17,7 +17,7 @@ func injectSlice(va reflect.Value, entry *control.Entry) error {
 		return errors.New("slice type without index")
 	}
 	// get the int representing the current index
-	indexInt := int(entry.GetCurrIndex().GetInt64())
+	indexInt := int(entry.GetCurrentIndex().GetInt64())
 	// if entry is a delete entry then delete the current index+
 	if entry.GetRemove() {
 		newSlice := reflect.MakeSlice(va.Type(), indexInt, indexInt)

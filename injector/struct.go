@@ -8,8 +8,8 @@ import (
 
 func injectStruct(va reflect.Value, entry *control.Entry) error {
 	entry.Advance()
-	if structFieldValue := va.FieldByName(entry.GetCurrKey()); structFieldValue.IsValid() {
+	if structFieldValue := va.FieldByName(entry.GetCurrKeyString()); structFieldValue.IsValid() {
 		return add(structFieldValue, entry)
 	}
-	return fmt.Errorf("field %s not found in struct", entry.GetCurrKey())
+	return fmt.Errorf("field %s not found in struct", entry.GetCurrKeyString())
 }

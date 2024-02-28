@@ -38,6 +38,7 @@ message Entry {
 message Key {
   string Key = 1;
   repeated Object Index = 2;
+  int64 IndexI = 3;
 }
 
 message Object {

@@ -21,8 +21,8 @@ func NewRemoveEntry(level int) *Entry {
 
 // Advance either advances the index or the key
 func (e *Entry) Advance() *Entry {
-	if len(e.GetCurrIndexObjects()) > 1 {
-		e.Key[e.GetKeyI()].Index = e.GetCurrIndexObjects()[1:]
+	if !e.GetCurrKey().IsLastIndex() {
+		e.Key[e.GetKeyI()].IndexI++
 	} else if int(e.KeyI) < len(e.GetKey())-1 {
 		e.KeyI++
 	}
@@ -30,37 +30,24 @@ func (e *Entry) Advance() *Entry {
 }
 
 func (e *Entry) IsLastKeyIndex() bool {
-	return len(e.GetKey()) == 0 || (int(e.KeyI) == len(e.GetKey())-1 && e.IsLastIndex())
+	return len(e.GetKey()) == 0 || (int(e.KeyI) == len(e.GetKey())-1 && e.GetCurrKey().IsLastIndex())
 }
 
-func (e *Entry) GetCurrIndexObjects() Objects {
+func (e *Entry) GetCurrKeyString() string {
+	return e.GetCurrKey().GetKey()
+}
+
+func (e *Entry) GetCurrKey() *Key {
 	if e == nil {
-		return nil
+		return &Key{}
 	}
 	if len(e.GetKey()) == 0 {
-		return nil
+		return &Key{}
 	}
-	return e.GetKey()[e.GetKeyI()].GetIndex()
+	return e.GetKey()[e.GetKeyI()]
 }
-
-func (e *Entry) GetCurrKey() string {
-	if e == nil {
-		return ""
-	}
-	if len(e.GetKey()) == 0 {
-		return ""
-	}
-	return e.GetKey()[e.GetKeyI()].GetKey()
-}
-func (e *Entry) GetCurrIndex() *Object {
-	if len(e.GetCurrIndexObjects()) == 0 {
-		return nil
-	}
-	return e.GetCurrIndexObjects()[0]
-}
-
-func (e *Entry) IsLastIndex() bool {
-	return e.GetCurrIndex() == nil || len(e.GetCurrIndexObjects()) == 1
+func (e *Entry) GetCurrentIndex() *Object {
+	return e.GetCurrKey().GetCurrentIndex()
 }
 
 func (e *Entry) Equals(other *Entry) bool {

@@ -61,10 +61,14 @@ func (ent Entries) Equals(other Entries) bool {
 // Diff returns a slice of Entries that are different between the two slices
 func (ent Entries) Diff(other Entries) *Entries {
 	var diff Entries
-	for i, e := range ent {
-		if !e.Equals(other[i]) {
-			diff = append(diff, e)
+top:
+	for _, e := range ent {
+		for _, oe := range other {
+			if e.Equals(oe) {
+				continue top
+			}
 		}
+		diff = append(diff, e)
 	}
 
 	return &diff

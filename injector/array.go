@@ -6,6 +6,6 @@ import (
 )
 
 func injectArray(va reflect.Value, entry *control.Entry) error {
-	indexInt := int(entry.GetCurrIndex().GetInt64())
+	indexInt := int(entry.GetCurrentIndex().GetInt64())
 	return add(va.Index(indexInt), entry.Advance())
 }

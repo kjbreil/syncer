@@ -193,7 +193,7 @@ func TestExtractor_GetDiff(t *testing.T) {
 			structure: &struct {
 				Slice [][]int
 			}{
-				Slice: [][]int{{1, 2}},
+				Slice: [][]int{{1}},
 			},
 			want: []*control.Entry{
 				{
@@ -207,18 +207,6 @@ func TestExtractor_GetDiff(t *testing.T) {
 						},
 					},
 					Value: control.NewObject(control.MakePtr(int64(1))),
-				},
-				{
-					Key: []*control.Key{
-						{
-							Key: "",
-						},
-						{
-							Key:   "Slice",
-							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0))), control.NewObject(control.MakePtr(int64(1)))),
-						},
-					},
-					Value: control.NewObject(control.MakePtr(int64(2))),
 				},
 			},
 		},

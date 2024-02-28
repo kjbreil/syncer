@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/extractor"
-	"github.com/kjbreil/syncer/helpers/equal"
 	. "github.com/kjbreil/syncer/helpers/test"
 	"testing"
 )
@@ -747,7 +746,7 @@ func TestInjector_AddAll(t *testing.T) {
 		t.Fatalf("New() = %v", err)
 	}
 
-	entries := []*control.Entry{
+	entries := control.Entries{
 		{
 			Key: []*control.Key{
 				{
@@ -1381,12 +1380,11 @@ func TestInjector_AddAll(t *testing.T) {
 	}
 
 	bs := MakeBaseTestStruct()
-	if !equal.Any(ts, bs) {
-		ext, _ := extractor.New(ts)
-		_, _ = ext.Entries(&ts)
-		diffEntries, _ := ext.Entries(&bs)
-		fmt.Println(diffEntries)
+	ext, _ := extractor.New(ts)
+	diffEntries, _ := ext.Entries(&bs)
+	diff := entries.Diff(diffEntries)
+	if diff != nil {
+		fmt.Println(diff.Struct())
 		t.Fatalf("ts does not equal MakeBaseTestStruct()")
 	}
-
 }

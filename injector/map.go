@@ -8,7 +8,7 @@ import (
 )
 
 func injectMap(va reflect.Value, entry *control.Entry) error {
-	if len(entry.GetCurrIndexObjects()) == 0 {
+	if entry.GetCurrKey().HasNoIndex() {
 		// no index on a map key and remove type make map nil
 		if entry.GetRemove() {
 			va.Set(reflect.New(va.Type()).Elem())
@@ -92,19 +92,19 @@ func makeMapKey(keyType reflect.Type, entry *control.Entry) (reflect.Value, erro
 	// based on the key type, set the indexed key
 	switch keyType.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		mapKey = reflect.ValueOf(int(entry.GetCurrIndex().GetInt64()))
+		mapKey = reflect.ValueOf(int(entry.GetCurrentIndex().GetInt64()))
 	case reflect.String:
 		// get the index as a string
-		mapKey = reflect.ValueOf(entry.GetCurrIndex().GetString_())
+		mapKey = reflect.ValueOf(entry.GetCurrentIndex().GetString_())
 		// TODO: Handle below casese
 	case reflect.Bool:
-		mapKey = reflect.ValueOf(entry.GetCurrIndex().GetBool())
+		mapKey = reflect.ValueOf(entry.GetCurrentIndex().GetBool())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		mapKey = reflect.ValueOf(int(entry.GetCurrIndex().GetUint64()))
+		mapKey = reflect.ValueOf(int(entry.GetCurrentIndex().GetUint64()))
 	case reflect.Float32:
-		mapKey = reflect.ValueOf(int(entry.GetCurrIndex().GetFloat32()))
+		mapKey = reflect.ValueOf(int(entry.GetCurrentIndex().GetFloat32()))
 	case reflect.Float64:
-		mapKey = reflect.ValueOf(int(entry.GetCurrIndex().GetFloat64()))
+		mapKey = reflect.ValueOf(int(entry.GetCurrentIndex().GetFloat64()))
 	// case reflect.Pointer:
 	// case reflect.Interface:
 	// case reflect.Struct:
