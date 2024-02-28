@@ -64,31 +64,40 @@ func (ext *Extractor) Entries(data any) (control.Entries, error) {
 	ext.mut.Lock()
 	defer ext.mut.Unlock()
 
+	if data == nil {
+		return nil, errors.New("data is nil")
+	}
+
 	// deep copy the current data as a point in time
 	pitData := deepcopy.Any(data)
 
-	// get the reflect values of the current and previous states
-	newValue := reflect.ValueOf(pitData)
-	if newValue.Kind() != reflect.Ptr {
-		return nil, ErrNotPointer
+	// check if ext.data is nil before proceeding
+	if ext.data != nil {
+		// get the reflect values of the current and previous states
+		newValue := reflect.ValueOf(pitData)
+		if newValue.Kind() != reflect.Ptr {
+			return nil, ErrNotPointer
+		}
+		newValue = reflect.Indirect(newValue)
+
+		oldValue := reflect.Indirect(reflect.ValueOf(ext.data))
+
+		// recursively extract the changes between the current and previous states
+		entries, err := extract(newValue, oldValue, reflect.StructField{
+			Name: newValue.Type().Name(),
+		}, 0, true)
+
+		if err != nil && !errors.Is(err, ErrUnsupportedType) {
+			return nil, err
+		}
+
+		// set the current state to the point in time data
+		ext.data = pitData
+
+		return entries, nil
 	}
-	newValue = reflect.Indirect(newValue)
 
-	oldValue := reflect.Indirect(reflect.ValueOf(ext.data))
-
-	// recursively extract the changes between the current and previous states
-	entries, err := extract(newValue, oldValue, reflect.StructField{
-		Name: newValue.Type().Name(),
-	}, 0, true)
-
-	if err != nil && !errors.Is(err, ErrUnsupportedType) {
-		return nil, err
-	}
-
-	// set the current state to the point in time data
-	ext.data = pitData
-
-	return entries, nil
+	return nil, nil
 }
 
 // extract recursively compares the current and previous states of a value and returns a list of

@@ -47,8 +47,16 @@ type Endpoint struct {
 // The data must be a pointer to a struct.
 // If the data is not a pointer, an error is returned.
 func New(data any, stngs *settings2.Settings) (*Endpoint, error) {
+	if data == nil {
+		return nil, errors.New("data cannot be nil")
+	}
+
 	if reflect.ValueOf(data).Kind() != reflect.Ptr {
 		return nil, ErrNotPointer
+	}
+
+	if stngs == nil {
+		return nil, errors.New("settings cannot be nil")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

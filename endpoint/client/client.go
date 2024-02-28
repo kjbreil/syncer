@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -64,7 +65,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	opts = append(opts, grpc.WithBlock())
 
-	addr := fmt.Sprintf("%s:%d", peer.IP.String(), peer.Port)
+	addr := net.JoinHostPort(peer.IP.String(), strconv.Itoa(peer.Port))
 
 	dialCtx, cancel := context.WithTimeout(c.ctx, time.Second)
 	defer cancel()
@@ -83,7 +84,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 			case <-time.After(time.Second * 5):
 				_, err = c.c.Control(c.ctx, &control.Message{Action: control.Message_PING})
 				if err != nil {
-					c.logger.Error(err.Error())
+					c.logger.Error(fmt.Errorf("context error: %w", err).Error())
 					c.cancel()
 				}
 			case <-c.ctx.Done():
@@ -162,12 +163,11 @@ func (c *Client) PushPull() {
 			select {
 			case <-time.After(checkInterval):
 				mu.Lock()
-				head, err := c.combined.Diff(c.data)
+				entries, err := c.combined.Entries(c.data)
 				if err != nil {
 					c.logger.Error(err.Error())
 					mu.Unlock()
 				}
-				entries := head.Entries()
 				for _, e := range entries {
 					err := client.Send(e)
 					if err != nil {
@@ -211,7 +211,7 @@ func (c *Client) PushPull() {
 			}
 			mu.Lock()
 			err = c.combined.Add(e)
-			_, _ = c.combined.Diff(c.data)
+			_, _ = c.combined.Entries(c.data)
 			mu.Unlock()
 			if err != nil {
 				c.logger.Error(fmt.Errorf("Client.PushPull(): %w", err).Error())
