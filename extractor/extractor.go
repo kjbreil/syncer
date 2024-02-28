@@ -15,9 +15,8 @@ type Extractor struct {
 }
 
 var (
-	ErrNotPointer         = errors.New("data is not a pointer")
-	ErrDataStructMisMatch = errors.New("data structs do not match")
-	ErrUnsupportedType    = errors.New("unsupported type")
+	ErrNotPointer      = errors.New("data is not a pointer")
+	ErrUnsupportedType = errors.New("unsupported type")
 )
 
 const (
@@ -42,21 +41,6 @@ func New(data any) (*Extractor, error) {
 		history: make([]*control.Diff, 0, historySize),
 		mut:     new(sync.Mutex),
 	}, nil
-}
-
-func NewEntries(data any) (control.Entries, error) {
-	if data == nil {
-		return nil, errors.New("data is nil")
-	}
-	t := reflect.Indirect(reflect.ValueOf(data)).Type()
-	dataStruct := reflect.New(t)
-	aStruct := deepcopy.Any(dataStruct.Interface())
-	e := &Extractor{
-		data:    aStruct,
-		history: make([]*control.Diff, 0, historySize),
-		mut:     new(sync.Mutex),
-	}
-	return e.Entries(&data)
 }
 
 func (ext *Extractor) addHistory(head *control.Diff) {

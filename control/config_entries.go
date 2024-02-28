@@ -11,7 +11,7 @@ func (ent *Entries) AddKey(key string) {
 		if len(e.Key) > 0 && e.Key[0].GetKey() == "" {
 			e.Key[0].Key = key
 		} else {
-			e.Key = append([]*Key{&Key{
+			e.Key = append([]*Key{{
 				Key: key,
 			}}, e.Key...)
 		}
@@ -23,7 +23,7 @@ func (ent *Entries) AddIndex(index any) {
 		if len(e.Key) > 0 && e.Key[0].GetKey() == "" {
 			e.Key[0].Index = NewObjects(NewObject(index), e.Key[0].Index...)
 		} else {
-			e.Key = append([]*Key{&Key{
+			e.Key = append([]*Key{{
 				Index: NewObjects(NewObject(index)),
 			}}, e.Key...)
 		}

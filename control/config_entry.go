@@ -11,11 +11,7 @@ func NewEntry(level int, value any) *Entry {
 		Value: NewObject(value),
 	}
 }
-func NewBlankEntry(level int) *Entry {
-	return &Entry{
-		Key: make([]*Key, 0, level),
-	}
-}
+
 func NewRemoveEntry(level int) *Entry {
 	return &Entry{
 		Key:    make([]*Key, 0, level),
