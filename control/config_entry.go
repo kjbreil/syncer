@@ -38,10 +38,7 @@ func (e *Entry) GetCurrKeyString() string {
 }
 
 func (e *Entry) GetCurrKey() *Key {
-	if e == nil {
-		return &Key{}
-	}
-	if len(e.GetKey()) == 0 {
+	if e == nil || len(e.GetKey()) == 0 {
 		return &Key{}
 	}
 	return e.GetKey()[e.GetKeyI()]
