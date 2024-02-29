@@ -5,14 +5,12 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/kjbreil/syncer/control"
 	"github.com/kjbreil/syncer/helpers/deepcopy"
 )
 
 type Extractor struct {
-	data    any
-	history []*control.Diff
-	mut     *sync.Mutex
+	data any
+	mut  *sync.Mutex
 }
 
 var (
@@ -38,25 +36,9 @@ func New(data any) (*Extractor, error) {
 	dataStruct := reflect.New(t)
 	aStruct := deepcopy.Any(dataStruct.Interface())
 	return &Extractor{
-		data:    aStruct,
-		history: make([]*control.Diff, 0, historySize),
-		mut:     new(sync.Mutex),
+		data: aStruct,
+		mut:  new(sync.Mutex),
 	}, nil
-}
-
-func (ext *Extractor) addHistory(head *control.Diff) {
-	if len(head.GetChildren()) == 0 {
-		return
-	}
-	// if length of history Equal to capacity drop first item and move everything down one
-	if len(ext.history) == cap(ext.history) {
-		for i := 0; i < len(ext.history)-1; i++ {
-			ext.history[i] = ext.history[i+1]
-		}
-		ext.history[len(ext.history)-1] = head
-	} else {
-		ext.history = append(ext.history, head)
-	}
 }
 
 // Reset resets the data to its initial state.
