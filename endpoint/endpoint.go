@@ -108,7 +108,7 @@ func (e *Endpoint) SetLogger(handler slog.Handler) {
 
 // AddHandler adds a handler to the endpoint.
 // only one handler can be added per state (stored in a map[State]Handler
-// Pass handler as a pointer to the object
+// Pass handler as a pointer to the object.
 func (e *Endpoint) AddHandler(state State, handler func() error) {
 	if e.handlers == nil {
 		e.handlers = make(map[State]func() error)
@@ -242,7 +242,7 @@ func (e *Endpoint) Running() bool {
 	return e.server != nil || e.client != nil
 }
 
-// ClientUpdate sends any changes made by the client to the server
+// ClientUpdate sends any changes made by the client to the server.
 func (e *Endpoint) ClientUpdate() {
 	if e.client != nil {
 		e.client.Changes()

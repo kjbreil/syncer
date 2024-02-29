@@ -27,7 +27,7 @@ var (
 )
 
 type Client struct {
-	c    control.ConfigClient
+	c    control.ControlClient
 	conn *grpc.ClientConn
 	peer net.TCPAddr
 
@@ -74,7 +74,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 		return nil, ErrClientNotAvailable
 	}
 
-	c.c = control.NewConfigClient(c.conn)
+	c.c = control.NewControlClient(c.conn)
 
 	wg.Add(1)
 	go func() {
@@ -107,7 +107,6 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 	}
 
 	c.combined, err = combined.New(c.ctx, data)
-
 	if err != nil {
 		return nil, c.closeWithError(fmt.Errorf("%w: %w", ErrClientInjector, err))
 	}
@@ -122,6 +121,7 @@ func (c *Client) Running() bool {
 func (c *Client) AddExtHandler(ext func() error) {
 	c.combined.ExtractorChanges(ext)
 }
+
 func (c *Client) AddInjHandler(inj func() error) {
 	c.combined.InjectorChanges(inj)
 }
@@ -234,7 +234,7 @@ func (c *Client) Changes() {
 	c.processUpdate(update)
 }
 
-func (c *Client) processUpdate(update control.Config_PullClient) {
+func (c *Client) processUpdate(update control.Control_PullClient) {
 	for {
 		cfg, err := update.Recv()
 		if errors.Is(err, io.EOF) {

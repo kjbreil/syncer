@@ -50,7 +50,7 @@ message Object {
   optional bytes bytes = 7;
 }
 
-service Config {
+service Control {
   rpc Pull(Request) returns (stream Entry) {}
   rpc Push(stream Entry) returns (Response) {}
   rpc PushPull(stream Entry) returns (stream Entry) {}

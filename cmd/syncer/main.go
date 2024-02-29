@@ -89,7 +89,7 @@ func main() {
 
 	s.endpointTwo.AddHandler(endpoint.InjectorChanges, func() error {
 		// s.endpointTwoData.Name = "injector changes"
-		fmt.Println("injector changes", s.endpointTwo)
+		fmt.Println("injector changes")
 		return nil
 	})
 

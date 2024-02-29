@@ -33,6 +33,7 @@ func (e *Endpoint) serverStarted() {
 		}
 	}
 }
+
 func (e *Endpoint) serverStopped() {
 	e.logger.Info("syncer endpoint server stopped")
 	if h, ok := e.handlers[ServerStop]; ok {

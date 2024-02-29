@@ -20,7 +20,7 @@ import (
 )
 
 type Server struct {
-	control.UnsafeConfigServer
+	control.UnsafeControlServer
 	grpcServer *grpc.Server
 
 	logger   *slog.Logger
@@ -63,7 +63,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, stngs *settings.Sett
 		return nil, fmt.Errorf("%w: %w", ErrServerInjector, err)
 	}
 
-	control.RegisterConfigServer(s.grpcServer, s)
+	control.RegisterControlServer(s.grpcServer, s)
 	go func() {
 		err := s.grpcServer.Serve(lis)
 		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
@@ -108,7 +108,7 @@ func (s *Server) Control(_ context.Context, message *control.Message) (*control.
 	}
 }
 
-func (s *Server) Pull(req *control.Request, srv control.Config_PullServer) error {
+func (s *Server) Pull(req *control.Request, srv control.Control_PullServer) error {
 	switch req.GetType() {
 	case control.Request_INIT:
 		s.combined.Reset()
@@ -126,12 +126,12 @@ func (s *Server) Pull(req *control.Request, srv control.Config_PullServer) error
 	return nil
 }
 
-func (s *Server) Push(server control.Config_PushServer) error {
+func (s *Server) Push(server control.Control_PushServer) error {
 	// TODO implement me
 	panic("implement me")
 }
 
-func (s *Server) PushPull(server control.Config_PushPullServer) error {
+func (s *Server) PushPull(server control.Control_PushPullServer) error {
 	ctx, cancel := context.WithCancel(s.ctx)
 
 	var wg sync.WaitGroup
