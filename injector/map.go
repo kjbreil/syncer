@@ -77,8 +77,13 @@ func makeMapValue(va reflect.Value, entry *control.Entry, mapKey reflect.Value) 
 	if currValue.IsValid() {
 		mapValue.Set(currValue)
 	}
-
-	err := add(mapValue, entry.Advance())
+	var err error
+	switch mapValue.Kind() {
+	case reflect.Struct:
+		err = add(mapValue, entry)
+	default:
+		err = add(mapValue, entry.Advance())
+	}
 	if err != nil {
 		return mapValue, err
 	}

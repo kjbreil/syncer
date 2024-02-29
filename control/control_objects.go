@@ -83,7 +83,7 @@ func (o *Object) Struct() string {
 	sb.WriteString("control.NewObject(")
 	switch {
 	case o.String_ != nil:
-		sb.WriteString(fmt.Sprintf("control.MakePtr(\"%q\")", o.GetString_()))
+		sb.WriteString(fmt.Sprintf("control.MakePtr(\"%s\")", o.GetString_()))
 	case o.Int64 != nil:
 		sb.WriteString(fmt.Sprintf("control.MakePtr(int64(%d))", o.GetInt64()))
 	case o.Uint64 != nil:
