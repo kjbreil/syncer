@@ -38,7 +38,7 @@ func injectMap(va reflect.Value, entry *control.Entry) error {
 		return err
 	}
 
-	if entry.GetRemove() {
+	if entry.GetRemove() && entry.IsLastKeyIndex() {
 		va.SetMapIndex(mapKey, reflect.Value{})
 		return nil
 	}
