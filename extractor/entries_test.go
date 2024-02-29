@@ -676,6 +676,44 @@ func TestExtractor_GetDiff_Big(t *testing.T) {
 			},
 		},
 		{
+			name: "MapStructSlice",
+			preFn: func() {
+
+			},
+			modFn: func() {
+				ts.MapStructSlice = map[int64]TestSub{
+					1: {
+						Slice: []SD{
+							{
+								Name: "test",
+							},
+						},
+					},
+				}
+			},
+			want: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapStructSlice",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key:   "Slice",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+						{
+							Key: "Name",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("test")),
+				},
+			},
+		},
+		{
 			name: "add to SliceStruct",
 			modFn: func() {
 				ts.SliceStruct = []SD{

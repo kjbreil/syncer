@@ -29,6 +29,7 @@ type TestStruct struct {
 	MapInterface   map[string]TestInterface
 	MapMap         map[string]map[string]int
 	MapSlice       map[string][]int
+	MapStructSlice map[int64]TestSub
 	SubStruct      TestSub
 	SubStructPtr   *TestStruct
 	unexported     string
@@ -39,6 +40,7 @@ type MapType map[string]TestSub
 
 type TestSub struct {
 	MapPtrStruct map[int64]*SD
+	Slice        []SD
 	S            string
 }
 

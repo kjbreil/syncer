@@ -89,9 +89,9 @@ func (e *Entry) Struct() string {
 		key := k.GetKey()
 		indexObject := Objects(k.GetIndex())
 		sb.WriteString("\t\t{\n")
-		sb.WriteString(fmt.Sprintf("\t\t\tKey: \"%q\",\n", key))
+		sb.WriteString(fmt.Sprintf("\t\t\tKey: \"%s\",\n", key))
 		if len(indexObject) > 0 {
-			sb.WriteString(fmt.Sprintf("\t\t\tIndex: %q,\n", indexObject.Struct()))
+			sb.WriteString(fmt.Sprintf("\t\t\tIndex: %s,\n", indexObject.Struct()))
 		}
 		sb.WriteString("\t\t},\n")
 	}
@@ -100,7 +100,7 @@ func (e *Entry) Struct() string {
 	if e.GetRemove() {
 		valueString = "\tRemove: true,\n"
 	} else {
-		valueString = fmt.Sprintf("\tValue: %q,\n", e.GetValue().Struct())
+		valueString = fmt.Sprintf("\tValue: %s,\n", e.GetValue().Struct())
 	}
 	sb.WriteString(valueString)
 	sb.WriteString("},\n")

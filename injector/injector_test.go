@@ -241,6 +241,37 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
+			name: "Add To MapStructSlice",
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapStructSlice",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key:   "Slice",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(0)))),
+						},
+						{
+							Key: "Name",
+						},
+					},
+					Value: control.NewObject(control.MakePtr("test")),
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if v, ok := ts.Map["test"]; !ok || v != 1 {
+					return fmt.Errorf("ts.Map[\"test\"] is %d, should be 1", v)
+				}
+				return nil
+			},
+		},
+		{
 			name: "Add To MapStruct",
 			entries: []*control.Entry{
 				{
@@ -726,12 +757,12 @@ func TestInjector_Add(t *testing.T) {
 			for _, e := range tt.entries {
 				err = inj.Add(e)
 				if (err != nil) != tt.wantErr {
-					t.Errorf("Injector.Add() error = %v, wantErr %v", err, tt.wantErr)
+					t.Fatalf("Injector.Add() error = %v, wantErr %v", err, tt.wantErr)
 				}
 			}
 			if tt.wantFn != nil {
 				if err = tt.wantFn(); err != nil {
-					t.Errorf("Injector.Add() = %v", err)
+					t.Fatalf("Injector.Add() = %v", err)
 				}
 			}
 		})
