@@ -272,6 +272,48 @@ func TestInjector_Add(t *testing.T) {
 			},
 		},
 		{
+			name: "Remove From MapStructSlice",
+			preFn: func() {
+				ts.MapStructSlice = map[int64]TestSub{
+					1: {
+						Slice: []SD{
+							{
+								Name: "test",
+								Data: "test",
+							},
+						},
+					},
+				}
+			},
+			entries: []*control.Entry{
+				{
+					Key: []*control.Key{
+						{
+							Key: "TestStruct",
+						},
+						{
+							Key:   "MapStructSlice",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(int64(1)))),
+						},
+						{
+							Key: "Slice",
+						},
+					},
+					Remove: true,
+				},
+			},
+			wantErr: false,
+			wantFn: func() error {
+				if mss, ok := ts.MapStructSlice[1]; ok {
+					if len(mss.Slice) != 0 {
+						return fmt.Errorf("mss.Slice should be empty")
+					}
+					return nil
+				}
+				return fmt.Errorf("ts.MapStructSlice[1] does not exist")
+			},
+		},
+		{
 			name: "Add To MapStruct",
 			entries: []*control.Entry{
 				{
