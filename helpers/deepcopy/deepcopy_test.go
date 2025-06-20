@@ -94,7 +94,6 @@ func Test_Any(t *testing.T) {
 				Val: nil,
 			},
 			wantFn: func(src, dst any) (bool, string) {
-
 				return reflect.DeepEqual(src, dst), ""
 			},
 		},

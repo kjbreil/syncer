@@ -34,16 +34,18 @@ type sd struct {
 }
 
 func TestEndpoint_Run(t *testing.T) {
-	peersOne := []net.TCPAddr{{
-		IP:   net.ParseIP("10.0.2.2"),
-		Port: 45014,
-	},
+	peersOne := []net.TCPAddr{
+		{
+			IP:   net.ParseIP("10.0.2.2"),
+			Port: 45014,
+		},
 	}
 
-	peersTwo := []net.TCPAddr{{
-		IP:   net.ParseIP("10.0.2.2"),
-		Port: 45014,
-	},
+	peersTwo := []net.TCPAddr{
+		{
+			IP:   net.ParseIP("10.0.2.2"),
+			Port: 45014,
+		},
 	}
 
 	portOne := 45014
@@ -76,22 +78,27 @@ func TestEndpoint_Run(t *testing.T) {
 	}
 
 	endpointOne.Run(false)
+	for !endpointOne.Running() {
+		time.Sleep(time.Second)
+	}
 	endpointTwo.Run(false)
+	for !endpointTwo.Running() {
+		time.Sleep(time.Second)
+	}
 
-	fmt.Println(dataOne.String)
-	fmt.Println(dataTwo.String)
+	if dataOne.String != dataTwo.String {
+		t.Fatal("dataOne.String != dataTwo.String")
+	}
 
 	endpointTwo.client.Init()
 
-	fmt.Println(dataOne.String)
-	fmt.Println(dataTwo.String)
 	dataOne.String = "String2"
-	fmt.Println(dataOne.String)
-	fmt.Println(dataTwo.String)
-	endpointTwo.client.Changes()
+	time.Sleep(time.Second)
 
-	fmt.Println(dataOne.String)
-	fmt.Println(dataTwo.String)
+	if dataOne.String != dataTwo.String {
+		t.Fatal("dataOne.String != dataTwo.String")
+	}
+
 	endpointOne.Stop()
 	time.Sleep(10 * time.Second)
 	endpointOne, err = New(&dataOne, &settings.Settings{

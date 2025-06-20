@@ -120,6 +120,7 @@ func deepCopySlice(dst, src reflect.Value) {
 		dst.Index(i).Set(deepCopy(src.Index(i)))
 	}
 }
+
 func deepCopyArray(dst, src reflect.Value) {
 	elemType := src.Type()
 	dst.Set(reflect.New(reflect.ArrayOf(src.Len(), elemType.Elem())).Elem())

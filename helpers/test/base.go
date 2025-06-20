@@ -57,7 +57,6 @@ func MakeBaseTestStruct() TestStruct {
 		SubStructPtr: &TestStruct{String: "Base Sub Test Struct"},
 		unexported:   "not exported",
 		Function: func() {
-
 		},
 	}
 }

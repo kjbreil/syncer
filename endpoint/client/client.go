@@ -65,7 +65,7 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, peer net.TCPAddr, er
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	opts = append(opts, grpc.WithBlock())
 
-	addr := net.JoinHostPort(peer.IP.String(), strconv.Itoa(peer.Port))
+	addr := net.JoinHostPort(peer.IP.String(), strconv.Itoa(peer.Port+1))
 
 	dialCtx, cancel := context.WithTimeout(c.ctx, time.Second)
 	defer cancel()

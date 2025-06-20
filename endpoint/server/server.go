@@ -7,8 +7,14 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"sync"
 	"time"
+
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/kjbreil/syncer/combined"
 	"github.com/kjbreil/syncer/control"
@@ -34,12 +40,14 @@ type Server struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
+	mu     *sync.Mutex
 }
 
 var (
-	ErrServerExited   = errors.New("server exited")
-	ErrServerListen   = errors.New("server could not start listening")
-	ErrServerInjector = errors.New("server could not create injector")
+	ErrServerExited    = errors.New("grpc server exited")
+	ErrWebServerExited = errors.New("grpc web server exited")
+	ErrServerListen    = errors.New("server could not start listening")
+	ErrServerInjector  = errors.New("server could not create injector")
 )
 
 func New(ctx context.Context, wg *sync.WaitGroup, data any, stngs *settings.Settings, errChan chan *slog.Record) (*Server, error) {
@@ -54,9 +62,27 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, stngs *settings.Sett
 		logger:     slog.New(slogchannel.Option{Level: slog.LevelDebug, Channel: errChan}.NewChannelHandler()),
 		// extractor:  ext,
 		data: data,
+		mu:   &sync.Mutex{},
 		wg:   wg,
 	}
+	reflection.Register(s.grpcServer)
+
 	s.ctx, s.cancel = context.WithCancel(ctx)
+
+	grpcWebServer := grpcweb.WrapServer(s.grpcServer)
+
+	httpServer := &http.Server{
+		Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if grpcWebServer.IsGrpcWebRequest(r) {
+				grpcWebServer.ServeHTTP(w, r)
+			}
+		}), &http2.Server{}),
+	}
+
+	// grpcWebLis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", stngs.Port+1))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	s.combined, err = combined.New(s.ctx, data)
 	if err != nil {
@@ -64,12 +90,19 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, stngs *settings.Sett
 	}
 
 	control.RegisterControlServer(s.grpcServer, s)
+	// go func() {
+	// 	err := s.grpcServer.Serve(lis)
+	// 	if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
+	// 		s.logger.Error(fmt.Errorf("%w: %w", ErrServerExited, err).Error())
+	// 	}
+	// 	s.logger.Error(ErrServerExited.Error())
+	//
+	// 	s.cancel()
+	// }()
+
 	go func() {
-		err := s.grpcServer.Serve(lis)
-		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			s.logger.Error(fmt.Errorf("%w: %w", ErrServerExited, err).Error())
-		}
-		s.logger.Error(ErrServerExited.Error())
+		err = httpServer.Serve(lis)
+		s.logger.Error(ErrWebServerExited.Error())
 
 		s.cancel()
 	}()
@@ -78,6 +111,10 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, stngs *settings.Sett
 	go func() {
 		<-s.ctx.Done()
 		s.grpcServer.Stop()
+		err = httpServer.Shutdown(s.ctx)
+		if err != nil {
+			s.logger.Error(err.Error())
+		}
 		wg.Done()
 	}()
 
@@ -99,12 +136,18 @@ func (s *Server) AddInjHandler(inj func() error) {
 func (s *Server) Control(_ context.Context, message *control.Message) (*control.Response, error) {
 	switch message.GetAction() {
 	case control.Message_PING:
-		return &control.Response{}, nil
+		return &control.Response{
+			Type: control.Response_OK,
+		}, nil
 	case control.Message_SHUTDOWN:
 		s.cancel()
-		return &control.Response{}, nil
+		return &control.Response{
+			Type: control.Response_OK,
+		}, nil
 	default:
-		return &control.Response{}, nil
+		return &control.Response{
+			Type: control.Response_ERROR,
+		}, nil
 	}
 }
 
@@ -127,8 +170,36 @@ func (s *Server) Pull(req *control.Request, srv control.Control_PullServer) erro
 }
 
 func (s *Server) Push(server control.Control_PushServer) error {
-	// TODO implement me
-	panic("implement me")
+	mu := &sync.Mutex{}
+
+	e, err := server.Recv()
+	if errors.Is(err, io.EOF) {
+		return err
+	}
+	if stat, ok := status.FromError(err); ok {
+		switch stat.Code() {
+		case codes.OK:
+		case codes.Canceled:
+			return nil
+		default:
+			s.logger.Error("Server.PushPull() GRPC error: %s" + stat.String())
+			return err
+		}
+	}
+
+	if err != nil {
+		s.logger.Error(fmt.Errorf("Server.PushPull(): %w", err).Error())
+		return err
+	}
+	mu.Lock()
+	err = s.combined.Add(e)
+	_, _ = s.combined.Entries(s.data)
+	mu.Unlock()
+	if err != nil {
+		s.logger.Error(fmt.Errorf("Server.PushPull(): %w", err).Error())
+		return err
+	}
+	return nil
 }
 
 func (s *Server) PushPull(server control.Control_PushPullServer) error {
