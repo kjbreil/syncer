@@ -10,29 +10,33 @@ var copyFns map[reflect.Kind]copyFn
 
 func init() {
 	copyFns = map[reflect.Kind]copyFn{
-		reflect.Bool:       deepCopyPrimitive,
-		reflect.Int:        deepCopyPrimitive,
-		reflect.Int8:       deepCopyPrimitive,
-		reflect.Int16:      deepCopyPrimitive,
-		reflect.Int32:      deepCopyPrimitive,
-		reflect.Int64:      deepCopyPrimitive,
-		reflect.Uint:       deepCopyPrimitive,
-		reflect.Uint8:      deepCopyPrimitive,
-		reflect.Uint16:     deepCopyPrimitive,
-		reflect.Uint32:     deepCopyPrimitive,
-		reflect.Uint64:     deepCopyPrimitive,
-		reflect.Uintptr:    deepCopyPrimitive,
-		reflect.Float32:    deepCopyPrimitive,
-		reflect.Float64:    deepCopyPrimitive,
-		reflect.Complex64:  deepCopyPrimitive,
-		reflect.Complex128: deepCopyPrimitive,
-		reflect.String:     deepCopyPrimitive,
-		reflect.Array:      deepCopyArray,
-		reflect.Map:        deepCopyMap,
-		reflect.Ptr:        deepCopyPointer,
-		reflect.Interface:  deepCopyInterface,
-		reflect.Slice:      deepCopySlice,
-		reflect.Struct:     deepCopyStruct,
+		reflect.Bool:          deepCopyPrimitive,
+		reflect.Int:           deepCopyPrimitive,
+		reflect.Int8:          deepCopyPrimitive,
+		reflect.Int16:         deepCopyPrimitive,
+		reflect.Int32:         deepCopyPrimitive,
+		reflect.Int64:         deepCopyPrimitive,
+		reflect.Uint:          deepCopyPrimitive,
+		reflect.Uint8:         deepCopyPrimitive,
+		reflect.Uint16:        deepCopyPrimitive,
+		reflect.Uint32:        deepCopyPrimitive,
+		reflect.Uint64:        deepCopyPrimitive,
+		reflect.Uintptr:       deepCopyPrimitive,
+		reflect.Float32:       deepCopyPrimitive,
+		reflect.Float64:       deepCopyPrimitive,
+		reflect.Complex64:     deepCopyPrimitive,
+		reflect.Complex128:    deepCopyPrimitive,
+		reflect.String:        deepCopyPrimitive,
+		reflect.Array:         deepCopyArray,
+		reflect.Map:           deepCopyMap,
+		reflect.Ptr:           deepCopyPointer,
+		reflect.Interface:     deepCopyInterface,
+		reflect.Slice:         deepCopySlice,
+		reflect.Struct:        deepCopyStruct,
+		reflect.Chan:          deepCopyUnsupported,
+		reflect.Func:          deepCopyUnsupported,
+		reflect.UnsafePointer: deepCopyUnsupported,
+		reflect.Invalid:       deepCopyInvalid,
 	}
 }
 
@@ -84,13 +88,13 @@ func deepCopyStruct(dst, src reflect.Value) {
 		}
 		dst.Field(i).Set(deepCopy(src.Field(i)))
 	}
-	return
 }
 
 func deepCopyInterface(dst, src reflect.Value) {
-	if src.Elem().IsValid() {
-		dst.Set(deepCopy(src.Elem()))
+	if src.IsNil() || !src.Elem().IsValid() {
+		return
 	}
+	dst.Set(deepCopy(src.Elem()))
 }
 
 func deepCopyPointer(dst, src reflect.Value) {
@@ -104,8 +108,16 @@ func deepCopyMap(dst, src reflect.Value) {
 		return
 	}
 	dst.Set(reflect.MakeMapWithSize(src.Type(), src.Len()))
+	keyType := src.Type().Key()
+	
 	for _, k := range src.MapKeys() {
-		dst.SetMapIndex(k, deepCopy(src.MapIndex(k)))
+		var newKey reflect.Value
+		if isPrimitiveKind(keyType.Kind()) {
+			newKey = k
+		} else {
+			newKey = deepCopy(k)
+		}
+		dst.SetMapIndex(newKey, deepCopy(src.MapIndex(k)))
 	}
 }
 
@@ -116,19 +128,47 @@ func deepCopySlice(dst, src reflect.Value) {
 	elemType := src.Type().Elem()
 	sliceType := reflect.SliceOf(elemType)
 	dst.Set(reflect.MakeSlice(sliceType, src.Len(), src.Cap()))
-	for i := 0; i < src.Len(); i++ {
-		dst.Index(i).Set(deepCopy(src.Index(i)))
+	
+	if isPrimitiveKind(elemType.Kind()) {
+		reflect.Copy(dst, src)
+	} else {
+		for i := 0; i < src.Len(); i++ {
+			dst.Index(i).Set(deepCopy(src.Index(i)))
+		}
 	}
 }
 
 func deepCopyArray(dst, src reflect.Value) {
 	elemType := src.Type()
 	dst.Set(reflect.New(reflect.ArrayOf(src.Len(), elemType.Elem())).Elem())
-	for i := 0; i < src.Len(); i++ {
-		dst.Index(i).Set(deepCopy(src.Index(i)))
+	
+	if isPrimitiveKind(elemType.Elem().Kind()) {
+		reflect.Copy(dst, src)
+	} else {
+		for i := 0; i < src.Len(); i++ {
+			dst.Index(i).Set(deepCopy(src.Index(i)))
+		}
 	}
 }
 
 func deepCopyPrimitive(dst, src reflect.Value) {
 	dst.Set(src)
+}
+
+func deepCopyUnsupported(dst, src reflect.Value) {
+	dst.Set(src)
+}
+
+func deepCopyInvalid(dst, src reflect.Value) {
+}
+
+func isPrimitiveKind(k reflect.Kind) bool {
+	switch k {
+	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128, reflect.String:
+		return true
+	default:
+		return false
+	}
 }
