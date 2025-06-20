@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/kjbreil/syncer/endpoint"
-	"github.com/kjbreil/syncer/endpoint/settings"
+	"github.com/kjbreil/syncer/pkg/endpoint"
+	"github.com/kjbreil/syncer/pkg/endpoint/settings"
 	"github.com/rivo/tview"
 )
 
