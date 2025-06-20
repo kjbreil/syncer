@@ -20,38 +20,38 @@ go build -o syncer cmd/syncer/main.go
 go test ./...
 
 # Run tests for a specific package
-go test ./extractor
-go test ./injector
-go test ./control
+go test ./pkg/extractor
+go test ./pkg/injector
+go test ./pkg/control
 ```
 
 ### Protocol Buffer Generation
 ```bash
 # Generate Go protobuf and gRPC code
-protoc -I=control/proto --go_out=. --go-grpc_out=. control/proto/*.proto
+protoc -I=pkg/control/proto --go_out=. --go-grpc_out=. pkg/control/proto/*.proto
 
 # Generate JavaScript/gRPC-Web code
-protoc -I=control/proto --go_out=. --js_out=import_style=commonjs,binary:control/web --grpc-web_out=import_style=commonjs,mode=grpcwebtext:control/web control/proto/*.proto
+protoc -I=pkg/control/proto --go_out=. --js_out=import_style=commonjs,binary:pkg/control/web --grpc-web_out=import_style=commonjs,mode=grpcwebtext:pkg/control/web pkg/control/proto/*.proto
 ```
 
 ## Architecture
 
 ### Core Components
 
-1. **Extractor** (`extractor/`): Analyzes structs and generates change entries by comparing current state with previous snapshots. Uses reflection to traverse struct fields and create `control.Entry` objects representing changes.
+1. **Extractor** (`pkg/extractor/`): Analyzes structs and generates change entries by comparing current state with previous snapshots. Uses reflection to traverse struct fields and create `control.Entry` objects representing changes.
 
-2. **Injector** (`injector/`): Applies changes from `control.Entry` objects to target structs. Handles type conversion and field updates across different Go types.
+2. **Injector** (`pkg/injector/`): Applies changes from `control.Entry` objects to target structs. Handles type conversion and field updates across different Go types.
 
-3. **Control** (`control/`): Contains the gRPC protocol definition and generated code. Implements streaming services for Push, Pull, and bidirectional Push/Pull operations.
+3. **Control** (`pkg/control/`): Contains the gRPC protocol definition and generated code. Implements streaming services for Push, Pull, and bidirectional Push/Pull operations.
 
-4. **Endpoint** (`endpoint/`): High-level API that combines extractor, injector, and control components into a single interface. Handles client/server roles and network communication.
+4. **Endpoint** (`pkg/endpoint/`): High-level API that combines extractor, injector, and control components into a single interface. Handles client/server roles and network communication.
 
 ### Key Files
 
-- `control/proto/control.proto`: Protocol buffer definitions for network communication
-- `endpoint/endpoint.go`: Main endpoint implementation with client/server logic
+- `pkg/control/proto/control.proto`: Protocol buffer definitions for network communication
+- `pkg/endpoint/endpoint.go`: Main endpoint implementation with client/server logic
 - `cmd/syncer/main.go`: Demo application showing dual-endpoint synchronization with TUI
-- `combined/combined.go`: Utilities for combining multiple structs for synchronization
+- `pkg/combined/combined.go`: Utilities for combining multiple structs for synchronization
 
 ### Data Flow
 
@@ -74,14 +74,14 @@ type MyStruct struct {
 
 ### Testing Patterns
 
-- Tests are organized by component (extractor, injector, control, helpers)
-- Use `helpers/test/` for shared test utilities and common test structures
-- Deep equality testing is handled by `helpers/equal/`
-- Deep copying for test setup is in `helpers/deepcopy/`
+- Tests are organized by component (extractor, injector, control, deepcopy, equal, test)
+- Use `pkg/test/` for shared test utilities and common test structures
+- Deep equality testing is handled by `pkg/equal/`
+- Deep copying for test setup is in `pkg/deepcopy/`
 
 ### Network Architecture
 
 - Client-centric design: clients initiate all connections and services
 - Server acts as a passive endpoint responding to client requests
 - Push/Pull service enables server-initiated updates when changes are detected
-- Auto-discovery and peer management through `endpoint/settings`
+- Auto-discovery and peer management through `pkg/endpoint/settings`
