@@ -188,7 +188,7 @@ proto.control.Message.prototype.toObject = function(opt_includeInstance) {
  */
 proto.control.Message.toObject = function(includeInstance, msg) {
   var f, obj = {
-    action: jspb.Message.getFieldWithDefault(msg, 1, 0)
+action: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -326,7 +326,7 @@ proto.control.Response.prototype.toObject = function(opt_includeInstance) {
  */
 proto.control.Response.toObject = function(includeInstance, msg) {
   var f, obj = {
-    type: jspb.Message.getFieldWithDefault(msg, 1, 0)
+type: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -464,7 +464,7 @@ proto.control.Request.prototype.toObject = function(opt_includeInstance) {
  */
 proto.control.Request.toObject = function(includeInstance, msg) {
   var f, obj = {
-    type: jspb.Message.getFieldWithDefault(msg, 1, 0)
+type: jspb.Message.getFieldWithDefault(msg, 1, 0)
   };
 
   if (includeInstance) {
@@ -610,11 +610,11 @@ proto.control.Entry.prototype.toObject = function(opt_includeInstance) {
  */
 proto.control.Entry.toObject = function(includeInstance, msg) {
   var f, obj = {
-    keyList: jspb.Message.toObjectList(msg.getKeyList(),
+keyList: jspb.Message.toObjectList(msg.getKeyList(),
     proto.control.Key.toObject, includeInstance),
-    keyi: jspb.Message.getFieldWithDefault(msg, 2, 0),
-    value: (f = msg.getValue()) && proto.control.Object.toObject(includeInstance, f),
-    remove: jspb.Message.getBooleanFieldWithDefault(msg, 4, false)
+keyi: jspb.Message.getFieldWithDefault(msg, 2, 0),
+value: (f = msg.getValue()) && proto.control.Object.toObject(includeInstance, f),
+remove: jspb.Message.getBooleanFieldWithDefault(msg, 4, false)
   };
 
   if (includeInstance) {
@@ -881,10 +881,10 @@ proto.control.Key.prototype.toObject = function(opt_includeInstance) {
  */
 proto.control.Key.toObject = function(includeInstance, msg) {
   var f, obj = {
-    key: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    indexList: jspb.Message.toObjectList(msg.getIndexList(),
+key: jspb.Message.getFieldWithDefault(msg, 1, ""),
+indexList: jspb.Message.toObjectList(msg.getIndexList(),
     proto.control.Object.toObject, includeInstance),
-    indexi: jspb.Message.getFieldWithDefault(msg, 3, 0)
+indexi: jspb.Message.getFieldWithDefault(msg, 3, 0)
   };
 
   if (includeInstance) {
@@ -1094,13 +1094,13 @@ proto.control.Object.prototype.toObject = function(opt_includeInstance) {
  */
 proto.control.Object.toObject = function(includeInstance, msg) {
   var f, obj = {
-    string: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    int64: jspb.Message.getFieldWithDefault(msg, 2, 0),
-    uint64: jspb.Message.getFieldWithDefault(msg, 3, 0),
-    float32: jspb.Message.getFloatingPointFieldWithDefault(msg, 4, 0.0),
-    float64: jspb.Message.getFloatingPointFieldWithDefault(msg, 5, 0.0),
-    bool: jspb.Message.getBooleanFieldWithDefault(msg, 6, false),
-    bytes: msg.getBytes_asB64()
+string: (f = jspb.Message.getField(msg, 1)) == null ? undefined : f,
+int64: (f = jspb.Message.getField(msg, 2)) == null ? undefined : f,
+uint64: (f = jspb.Message.getField(msg, 3)) == null ? undefined : f,
+float32: (f = jspb.Message.getOptionalFloatingPointField(msg, 4)) == null ? undefined : f,
+float64: (f = jspb.Message.getOptionalFloatingPointField(msg, 5)) == null ? undefined : f,
+bool: (f = jspb.Message.getBooleanField(msg, 6)) == null ? undefined : f,
+bytes: msg.getBytes_asB64()
   };
 
   if (includeInstance) {
