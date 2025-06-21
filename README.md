@@ -4,7 +4,7 @@ Syncer is a Go tool for synchronizing struct data between programs over a networ
 
 ## WARNING
 
-Do not use this project directly at the moment, the API is changing and all the needed tests have not been created.
+Do not use this project directly at the moment, the API is changing and all the needed tests have not been created. Parts of this project, like DeepCopy and Equal can be considered finished or at least API stable.
 
 ## Features
 
@@ -114,3 +114,223 @@ make proto
 ```
 
 This generates both Go and JavaScript/gRPC-Web bindings from `control/proto/control.proto`.
+
+## Core Packages
+
+The Syncer project provides several standalone utility packages that can be used independently:
+
+### pkg/deepcopy
+
+A high-performance deep copy library for Go that uses reflection to create independent copies of any Go value.
+
+**Key Features:**
+- Handles all Go types (structs, slices, maps, pointers, interfaces, arrays)  
+- Optimized performance with primitive type detection
+- Uses `reflect.Copy` for primitive arrays/slices
+- Thread-safe operations
+- Generic `Any[T]` function for type-safe copying
+
+**Usage:**
+```go
+package main
+
+import (
+    "reflect"
+    "github.com/kjbreil/syncer/pkg/deepcopy"
+)
+
+// Using the generic Any function (recommended)
+original := MyStruct{Name: "test", Data: []int{1, 2, 3}}
+copied := deepcopy.Any(original)
+
+// Using with reflect.Value directly
+originalValue := reflect.ValueOf(original)
+copiedValue := deepcopy.DeepCopy(originalValue)
+copied := copiedValue.Interface().(MyStruct)
+```
+
+### pkg/equal
+
+A specialized equality comparison library that provides more flexible comparison than Go's `reflect.DeepEqual`.
+
+**Key Features:**
+- Cross-type comparison for numeric types (int8 vs int32, float32 vs float64)
+- Pointer dereferencing for value comparison
+- Interface value comparison
+- Handles all Go collection types (arrays, slices, maps)
+- Function signature comparison
+
+**Comparison with reflect.DeepEqual:**
+- `reflect.DeepEqual`: Strict type matching, `int32(5) != int64(5)`
+- `pkg/equal`: Flexible numeric comparison, `int32(5) == int64(5)`
+- `reflect.DeepEqual`: Pointer address comparison  
+- `pkg/equal`: Dereferences pointers to compare values
+
+**Usage:**
+```go
+package main
+
+import (
+    "reflect"
+    "github.com/kjbreil/syncer/pkg/equal"
+)
+
+// Using the generic Any function (recommended)
+a := int32(42)
+b := int64(42)
+isEqual := equal.Any(a, b) // true (unlike reflect.DeepEqual)
+
+// Using with reflect.Value directly
+valueA := reflect.ValueOf(&MyStruct{Name: "test"})
+valueB := reflect.ValueOf(&MyStruct{Name: "test"})
+isEqual := equal.Equal(valueA, valueB) // true (compares values, not addresses)
+```
+
+## Manual Usage of Core Components
+
+### pkg/extractor
+
+The extractor monitors structs for changes and generates `control.Entry` objects representing the differences.
+
+**Manual Usage:**
+```go
+package main
+
+import (
+    "github.com/kjbreil/syncer/pkg/extractor"
+)
+
+type MyData struct {
+    Name        string
+    Count       int
+    LocalField  string `extractor:"-"` // Excluded from sync
+}
+
+func main() {
+    // Create extractor with initial data
+    data := &MyData{Name: "initial", Count: 0}
+    ext, err := extractor.New(data)
+    if err != nil {
+        panic(err)
+    }
+
+    // Modify your data
+    data.Name = "modified"
+    data.Count = 42
+
+    // Extract changes
+    entries, err := ext.Entries(data)
+    if err != nil {
+        panic(err)
+    }
+
+    // entries now contains the differences
+    for _, entry := range entries {
+        // Process each change entry
+        fmt.Printf("Changed: %s\n", entry.String())
+    }
+
+    // Reset to clean state
+    ext.Reset()
+}
+```
+
+### pkg/injector
+
+The injector applies `control.Entry` changes to target structs.
+
+**Manual Usage:**
+```go
+package main
+
+import (
+    "github.com/kjbreil/syncer/pkg/injector"
+    "github.com/kjbreil/syncer/pkg/control"
+)
+
+func main() {
+    // Target data structure (must be pointer)
+    targetData := &MyData{Name: "original", Count: 0}
+    
+    // Create injector
+    inj, err := injector.New(targetData)
+    if err != nil {
+        panic(err)
+    }
+
+    // Apply single entry
+    entry := &control.Entry{/* entry data */}
+    err = inj.Add(entry)
+    if err != nil {
+        panic(err)
+    }
+
+    // Apply multiple entries at once
+    entries := control.Entries{/* multiple entries */}
+    err = inj.AddAll(entries)
+    if err != nil {
+        panic(err)
+    }
+
+    // targetData is now updated with the injected changes
+}
+```
+
+### pkg/combined
+
+The combined package provides a higher-level interface that manages both extraction and injection with change debouncing.
+
+**Usage:**
+```go
+package main
+
+import (
+    "context"
+    "time"
+    "github.com/kjbreil/syncer/pkg/combined"
+)
+
+func main() {
+    ctx := context.Background()
+    data := &MyData{Name: "test", Count: 0}
+    
+    // Create combined extractor/injector
+    combo, err := combined.New(ctx, data)
+    if err != nil {
+        panic(err)
+    }
+    defer combo.Close()
+
+    // Set custom debounce duration (default: 2 seconds)
+    combo.Debounce = time.Millisecond * 500
+
+    // Set callback for when extractor detects changes
+    combo.ExtractorChanges(func() error {
+        // Called when data changes are detected
+        fmt.Println("Data changed!")
+        return nil
+    })
+
+    // Set callback for when injector applies changes  
+    combo.InjectorChanges(func() error {
+        // Called when changes are applied
+        fmt.Println("Changes applied!")
+        return nil
+    })
+
+    // Extract changes from modified data
+    data.Name = "modified"
+    entries, err := combo.Entries(data)
+    if err != nil {
+        panic(err)
+    }
+
+    // Apply changes from external source
+    err = combo.Add(entry)
+    if err != nil {
+        panic(err)
+    }
+
+    // Reset to clean state
+    combo.Reset()
+}
