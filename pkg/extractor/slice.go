@@ -12,6 +12,11 @@ func extractSlice(newValue, oldValue reflect.Value, upperType reflect.StructFiel
 		return control.Entries{control.NewRemoveEntry(level)}, nil
 	}
 
+	// Handle []byte as a single primitive value for efficiency
+	if newValue.Type().Elem().Kind() == reflect.Uint8 {
+		return extractByteSlice(newValue, oldValue, level)
+	}
+
 	// make the old slice match the new slice
 	// oldValue is shorter, add the extra entries and just run compare
 	if oldValue.Len() < newValue.Len() {
@@ -49,4 +54,13 @@ func extractSlice(newValue, oldValue reflect.Value, upperType reflect.StructFiel
 	}
 
 	return entries, nil
+}
+
+// extractByteSlice handles []byte as a single value rather than element-by-element
+func extractByteSlice(newValue, oldValue reflect.Value, level int) (control.Entries, error) {
+	if !equal.Equal(newValue, oldValue) {
+		entry := control.NewEntry(level, newValue.Interface())
+		return control.Entries{entry}, nil
+	}
+	return nil, nil
 }

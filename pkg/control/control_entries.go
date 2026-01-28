@@ -43,14 +43,23 @@ func (ent Entries) Struct() string {
 	return builder.String()
 }
 
-// Equals returns true if the Entries are equal, false otherwise.
+// Equals returns true if the Entries are equal regardless of order, false otherwise.
 func (ent Entries) Equals(other Entries) bool {
 	if len(ent) != len(other) {
 		return false
 	}
 
-	for i, e := range ent {
-		if !e.Equals(other[i]) {
+	used := make([]bool, len(other))
+	for _, e := range ent {
+		found := false
+		for j, oe := range other {
+			if !used[j] && e.Equals(oe) {
+				used[j] = true
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}

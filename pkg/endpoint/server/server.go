@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -73,16 +74,14 @@ func New(ctx context.Context, wg *sync.WaitGroup, data any, stngs *settings.Sett
 
 	httpServer := &http.Server{
 		Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if grpcWebServer.IsGrpcWebRequest(r) {
+			// Route standard gRPC requests to the gRPC server
+			if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+				s.grpcServer.ServeHTTP(w, r)
+			} else if grpcWebServer.IsGrpcWebRequest(r) {
 				grpcWebServer.ServeHTTP(w, r)
 			}
 		}), &http2.Server{}),
 	}
-
-	// grpcWebLis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", stngs.Port+1))
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	s.combined, err = combined.New(s.ctx, data)
 	if err != nil {

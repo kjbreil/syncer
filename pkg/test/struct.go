@@ -3,6 +3,22 @@ package test
 type TestStruct struct {
 	String         string
 	Int            int
+	Int8           int8
+	Int16          int16
+	Int32          int32
+	Int64          int64
+	Uint           uint
+	Uint8          uint8
+	Uint16         uint16
+	Uint32         uint32
+	Uint64         uint64
+	Float32        float32
+	Float64        float64
+	Complex64      complex64
+	Complex128     complex128
+	Bool           bool
+	Byte           byte
+	Bytes          []byte
 	Interface      TestInterface
 	Slice          []int
 	SliceStruct    []SD
@@ -22,6 +38,7 @@ type TestStruct struct {
 	MapKeyBool     map[bool]int
 	MapKeyUint     map[uint]int
 	MapKeyFloat    map[float64]int
+	MapKeyFloat32  map[float32]int
 	MapStruct      map[string]TestStruct
 	MapMapType     map[string]MapType
 	MapPtr         map[string]*int

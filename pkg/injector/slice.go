@@ -15,6 +15,11 @@ func injectSlice(va reflect.Value, entry *control.Entry) error {
 			va.Set(reflect.New(va.Type()).Elem())
 			return nil
 		}
+		// Handle []byte: the value is stored as bytes in the entry
+		if va.Type().Elem().Kind() == reflect.Uint8 && entry.GetValue() != nil && entry.GetValue().GetBytes() != nil {
+			va.SetBytes(entry.GetValue().GetBytes())
+			return nil
+		}
 		return errors.New("slice type without index")
 	}
 	// get the int representing the current index
