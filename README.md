@@ -2,9 +2,17 @@
 
 Syncer is a Go tool for synchronizing struct data between programs over a network using gRPC. It automatically detects changes in structs and propagates them to connected peers in real-time.
 
-## WARNING
+> **Warning:** The API is not yet stable and is subject to change. Not all tests have been written. The standalone utility packages (`pkg/deepcopy` and `pkg/equal`) can be considered API-stable.
 
-Do not use this project directly at the moment, the API is changing and all the needed tests have not been created. Parts of this project, like DeepCopy and Equal can be considered finished or at least API stable.
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Struct Tags](#struct-tags)
+- [Project Structure](#project-structure)
+- [Development](#development)
+- [Core Packages](#core-packages)
+- [Manual Usage of Core Components](#manual-usage-of-core-components)
 
 ## Features
 
@@ -36,8 +44,8 @@ package main
 
 import (
     "net"
-    "github.com/kjbreil/syncer/endpoint"
-    "github.com/kjbreil/syncer/endpoint/settings"
+    "github.com/kjbreil/syncer/pkg/endpoint"
+    "github.com/kjbreil/syncer/pkg/endpoint/settings"
 )
 
 // Define your data structure
@@ -90,6 +98,27 @@ type MyStruct struct {
 }
 ```
 
+## Project Structure
+
+```
+syncer/
+├── cmd/syncer/          # Demo application with TUI
+├── pkg/
+│   ├── combined/        # High-level extractor + injector with debouncing
+│   ├── control/         # gRPC service definitions and generated protobuf code
+│   │   └── proto/       # Protocol buffer source files
+│   ├── deepcopy/        # Standalone deep copy library
+│   ├── endpoint/        # Full client/server synchronization endpoint
+│   │   ├── client/      # gRPC client implementation
+│   │   ├── server/      # gRPC server implementation
+│   │   └── settings/    # Endpoint configuration
+│   ├── equal/           # Standalone flexible equality comparison
+│   ├── extractor/       # Change detection via struct diffing
+│   ├── injector/        # Applies changes to target structs
+│   └── test/            # Shared test utilities
+└── Makefile
+```
+
 ## Development
 
 ### Building
@@ -105,6 +134,18 @@ make test
 make proto
 ```
 
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests for a specific package
+go test ./pkg/extractor
+go test ./pkg/injector
+go test ./pkg/control
+```
+
 ### Protocol Buffers
 
 The project uses Protocol Buffers for network communication. To regenerate the protobuf files:
@@ -113,7 +154,20 @@ The project uses Protocol Buffers for network communication. To regenerate the p
 make proto
 ```
 
-This generates both Go and JavaScript/gRPC-Web bindings from `control/proto/control.proto`.
+This generates both Go and JavaScript/gRPC-Web bindings from `pkg/control/proto/control.proto`.
+
+To generate manually without Make:
+
+```bash
+# Go protobuf and gRPC code
+protoc -I=pkg/control/proto --go_out=. --go-grpc_out=. pkg/control/proto/*.proto
+
+# JavaScript/gRPC-Web code
+protoc -I=pkg/control/proto --go_out=. \
+    --js_out=import_style=commonjs,binary:pkg/control/web \
+    --grpc-web_out=import_style=commonjs,mode=grpcwebtext:pkg/control/web \
+    pkg/control/proto/*.proto
+```
 
 ## Core Packages
 
@@ -197,6 +251,7 @@ The extractor monitors structs for changes and generates `control.Entry` objects
 package main
 
 import (
+    "fmt"
     "github.com/kjbreil/syncer/pkg/extractor"
 )
 
@@ -286,6 +341,7 @@ package main
 
 import (
     "context"
+    "fmt"
     "time"
     "github.com/kjbreil/syncer/pkg/combined"
 )
