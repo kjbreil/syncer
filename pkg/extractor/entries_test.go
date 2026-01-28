@@ -1170,6 +1170,118 @@ func TestExtractor_GetDiff_Big(t *testing.T) {
 				},
 				{
 					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Int8"},
+					},
+					Value: control.NewObject(control.MakePtr(int64(8))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Int16"},
+					},
+					Value: control.NewObject(control.MakePtr(int64(16))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Int32"},
+					},
+					Value: control.NewObject(control.MakePtr(int64(32))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Int64"},
+					},
+					Value: control.NewObject(control.MakePtr(int64(64))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Uint"},
+					},
+					Value: control.NewObject(control.MakePtr(uint64(10))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Uint8"},
+					},
+					Value: control.NewObject(control.MakePtr(uint64(18))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Uint16"},
+					},
+					Value: control.NewObject(control.MakePtr(uint64(116))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Uint32"},
+					},
+					Value: control.NewObject(control.MakePtr(uint64(132))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Uint64"},
+					},
+					Value: control.NewObject(control.MakePtr(uint64(164))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Float32"},
+					},
+					Value: control.NewObject(control.MakePtr(float32(3.14))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Float64"},
+					},
+					Value: control.NewObject(control.MakePtr(float64(2.71828))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Complex64"},
+					},
+					Value: control.NewObject(control.MakePtr(complex64(complex(1.5, 2.5)))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Complex128"},
+					},
+					Value: control.NewObject(control.MakePtr(complex(3.14, 2.71))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Bool"},
+					},
+					Value: control.NewObject(control.MakePtr(true)),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Byte"},
+					},
+					Value: control.NewObject(control.MakePtr(uint64(255))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{Key: "Bytes"},
+					},
+					Value: &control.Object{Bytes: []byte{0x01, 0x02, 0x03}},
+				},
+				{
+					Key: []*control.Key{
 						{
 							Key: "TestStruct",
 						},
@@ -1646,6 +1758,16 @@ func TestExtractor_GetDiff_Big(t *testing.T) {
 						{
 							Key:   "MapKeyFloat",
 							Index: control.NewObjects(control.NewObject(control.MakePtr(float64(1.000000)))),
+						},
+					},
+					Value: control.NewObject(control.MakePtr(int64(1))),
+				},
+				{
+					Key: []*control.Key{
+						{Key: "TestStruct"},
+						{
+							Key:   "MapKeyFloat32",
+							Index: control.NewObjects(control.NewObject(control.MakePtr(float32(1.5)))),
 						},
 					},
 					Value: control.NewObject(control.MakePtr(int64(1))),

@@ -1,7 +1,10 @@
 package control
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"math"
 	"reflect"
 	"strings"
 )
@@ -68,8 +71,8 @@ func (o *Object) Equals(other *Object) bool {
 		return false
 	}
 
-	if o.GetBytes() != nil {
-		panic("need to make bytes comparison")
+	if !bytes.Equal(o.GetBytes(), other.GetBytes()) {
+		return false
 	}
 
 	return true
@@ -117,7 +120,6 @@ func NewObject(v any) *Object {
 		return nil
 	}
 
-	// TODO: Should panic if is not a valid type for NewObject
 	var o Object
 	switch va.Type().Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -132,6 +134,18 @@ func NewObject(v any) *Object {
 		o.String_ = MakePtr(va.String())
 	case reflect.Bool:
 		o.Bool = MakePtr(va.Bool())
+	case reflect.Complex64:
+		c := complex64(va.Complex())
+		buf := make([]byte, 8)
+		binary.LittleEndian.PutUint32(buf[0:4], math.Float32bits(real(c)))
+		binary.LittleEndian.PutUint32(buf[4:8], math.Float32bits(imag(c)))
+		o.Bytes = buf
+	case reflect.Complex128:
+		c := va.Complex()
+		buf := make([]byte, 16)
+		binary.LittleEndian.PutUint64(buf[0:8], math.Float64bits(real(c)))
+		binary.LittleEndian.PutUint64(buf[8:16], math.Float64bits(imag(c)))
+		o.Bytes = buf
 	case reflect.Slice:
 		if va.Type().Elem().Kind() == reflect.Uint8 {
 			o.Bytes = va.Bytes()
@@ -154,11 +168,9 @@ func (o *Object) SetValue(va reflect.Value) error {
 	case reflect.String:
 		va.SetString(o.GetString_())
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i := int(o.GetInt64())
-		va.SetInt(int64(i))
+		va.SetInt(o.GetInt64())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		i := uint(o.GetUint64())
-		va.SetUint(uint64(i))
+		va.SetUint(o.GetUint64())
 	case reflect.Float32:
 		f := o.GetFloat32()
 		va.SetFloat(float64(f))
@@ -168,6 +180,20 @@ func (o *Object) SetValue(va reflect.Value) error {
 	case reflect.Bool:
 		b := o.GetBool()
 		va.SetBool(b)
+	case reflect.Complex64:
+		b := o.GetBytes()
+		if len(b) == 8 {
+			r := math.Float32frombits(binary.LittleEndian.Uint32(b[0:4]))
+			i := math.Float32frombits(binary.LittleEndian.Uint32(b[4:8]))
+			va.SetComplex(complex(float64(r), float64(i)))
+		}
+	case reflect.Complex128:
+		b := o.GetBytes()
+		if len(b) == 16 {
+			r := math.Float64frombits(binary.LittleEndian.Uint64(b[0:8]))
+			i := math.Float64frombits(binary.LittleEndian.Uint64(b[8:16]))
+			va.SetComplex(complex(r, i))
+		}
 	default:
 		return fmt.Errorf("SetValue used on unknown kind: %q", va.Kind())
 	}
